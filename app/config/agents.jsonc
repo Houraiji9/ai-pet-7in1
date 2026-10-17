@@ -1,0 +1,82 @@
+// ============================================================================
+// 前台程序 → 角色 映射表（可以用记事本直接改，改完在托盘菜单点「重新加载配置」）
+//
+// 识别方式：只看「当前前台窗口」所属程序的 exe 文件名 / 完整路径 / 包身份，默认不看窗口标题。
+// 带 "verified": true 的规则来自主人之前的 C# 桌宠（old-codex-pet/config/agents.json），已在真机上验证过；
+// 带 "verified": false 的是猜的 exe 名，还没验证——请打开托盘菜单「调试：查看前台窗口…」，
+// 切到对应程序，看「exe 文件名 / 完整路径」，不对的话改这里的 executables。
+//
+// 字段说明：
+//   id            规则名字（随便起，不能重复）
+//   label         显示用的名字
+//   character     对应角色：gpt / gemini / glm / claude / kimi / deepseek / grok
+//   executables   exe 文件名列表（只写文件名，不带路径，不区分大小写）
+//   packagePrefix 可选：包身份（商店/MSIX 应用）必须以它开头，或安装路径里某一级目录以它开头
+//   pathSegment   可选：完整路径里必须包含这一段目录（例如 Google/Gemini）
+//   enabled       false = 暂时不用这条
+//   verified      true = 已在真机确认；false = 猜的，待确认
+// 从上往下，第一条命中的规则生效。没命中的程序（微信、资源管理器等）会保持上一个角色。
+// ============================================================================
+{
+  // 启动时先显示哪个角色
+  "defaultCharacter": "deepseek",
+  // 每隔多少毫秒看一次前台窗口（旧桌宠是 100）
+  "sampleIntervalMs": 100,
+  // 同一个候选角色要连续稳定多少毫秒才切换（旧桌宠是 300），防止 Alt+Tab 时来回闪
+  "debounceMs": 300,
+
+  "rules": [
+    // ---------- 已验证（来自旧桌宠） ----------
+    {
+      "id": "gpt",
+      "label": "Codex / ChatGPT",
+      "character": "gpt",
+      "executables": ["ChatGPT.exe"],
+      // Codex 桌面端是商店应用：包身份 OpenAI.Codex_xxxx，或装在 WindowsApps\OpenAI.Codex_... 目录下
+      "packagePrefix": "OpenAI.Codex_",
+      "enabled": true,
+      "verified": true
+    },
+    { "id": "zcode", "label": "ZCode", "character": "glm", "executables": ["ZCode.exe"], "enabled": true, "verified": true },
+    { "id": "kimi", "label": "Kimi", "character": "kimi", "executables": ["Kimi.exe"], "enabled": true, "verified": true },
+    {
+      "id": "gemini",
+      "label": "Gemini 桌面端",
+      "character": "gemini",
+      "executables": ["Gemini.exe"],
+      // 路径里要有 Google/Gemini 这一段（兼容 app-版本号 目录）
+      "pathSegment": "Google/Gemini",
+      "enabled": true,
+      "verified": true
+    },
+    { "id": "deepseek", "label": "DeepSeek Harness", "character": "deepseek", "executables": ["DeepSeek Harness.exe"], "enabled": true, "verified": true },
+    { "id": "grok-bot", "label": "Grok Bot", "character": "grok", "executables": ["Grok Bot.exe"], "enabled": true, "verified": true },
+    // 预留：未来的 Grok Build，确认真实 exe 名后填进 executables 并改 enabled: true
+    { "id": "grok-build", "label": "Grok Build（预留）", "character": "grok", "executables": [], "enabled": false, "verified": false },
+
+    // ---------- 未验证（猜的 exe 名，请用调试窗口确认） ----------
+    { "id": "claude", "label": "Claude 桌面端", "character": "claude", "executables": ["Claude.exe"], "enabled": true, "verified": false },
+    { "id": "antigravity", "label": "Antigravity（反重力）", "character": "gemini", "executables": ["Antigravity.exe"], "enabled": true, "verified": false },
+    { "id": "workbuddy", "label": "WorkBuddy", "character": "deepseek", "executables": ["WorkBuddy.exe"], "enabled": true, "verified": false },
+    { "id": "cursor", "label": "Cursor", "character": "grok", "executables": ["Cursor.exe"], "enabled": true, "verified": false }
+  ],
+
+  // ---------- 可选：浏览器网页版（按标签页标题识别），默认关闭 ----------
+  // 打开后：前台是下面列出的浏览器、且窗口标题包含关键字时也会切换。
+  // 注意标题里只要出现这些词就会命中（比如在搜「Claude 教程」），所以默认不开。
+  "browserTitleRules": {
+    "enabled": false,
+    "browsers": ["chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "vivaldi.exe", "arc.exe"],
+    "rules": [
+      { "titleContains": "ChatGPT", "character": "gpt" },
+      { "titleContains": "Codex", "character": "gpt" },
+      { "titleContains": "Gemini", "character": "gemini" },
+      { "titleContains": "智谱清言", "character": "glm" },
+      { "titleContains": "ChatGLM", "character": "glm" },
+      { "titleContains": "Claude", "character": "claude" },
+      { "titleContains": "Kimi", "character": "kimi" },
+      { "titleContains": "DeepSeek", "character": "deepseek" },
+      { "titleContains": "Grok", "character": "grok" }
+    ]
+  }
+}

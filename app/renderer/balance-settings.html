@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>AI 桌宠：余额设置</title>
+    <style>
+      body { font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif; font-size: 13px; margin: 14px; color: #222; }
+      h2 { font-size: 14px; margin: 16px 0 6px; }
+      .tip { color: #666; margin: 4px 0 8px; line-height: 1.5; }
+      .row { display: flex; gap: 6px; align-items: center; margin: 6px 0; }
+      input[type=password] { flex: 1; padding: 4px 6px; font-family: Consolas, monospace; }
+      .st { font-weight: bold; }
+      .st.saved, .st.env { color: #27863f; }
+      .st.none { color: #b06000; }
+      .out { white-space: pre-wrap; background: #f6f6f6; padding: 6px 8px; min-height: 18px; border-radius: 4px; }
+      .out.err { color: #c0392b; }
+      .warn { color: #c0392b; }
+      code { background: #f4f4f4; padding: 0 3px; }
+      ul { margin: 4px 0; padding-left: 20px; line-height: 1.6; }
+    </style>
+  </head>
+  <body>
+    <p class="tip">Key 用 Windows 系统加密（DPAPI）保存在本机用户目录，只有桌宠主进程能解开；这个窗口保存之后也看不到原文。也可以不填，改设环境变量。</p>
+    <p id="enc" class="warn" hidden>这台电脑的系统加密不可用：没法安全保存 Key，请改用环境变量。</p>
+
+    <h2>DeepSeek（DeepSeek 角色）</h2>
+    <div class="tip">在 <code>platform.deepseek.com/api_keys</code> 创建一个 API Key 粘进来。环境变量：<code>DEEPSEEK_API_KEY</code>。当前：<span id="st-deepseek" class="st">…</span></div>
+    <div class="row"><input id="k-deepseek" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" /><button id="save-deepseek">保存</button><button id="clear-deepseek">清除</button><button id="test-deepseek">查一次</button></div>
+    <div id="out-deepseek" class="out"></div>
+
+    <h2>GLM / Z.ai（GLM 角色，可选）</h2>
+    <div class="tip">登录了 ZCode 的话不用填，会自动读 ZCode 的登录。想额外查智谱账户现金余额，或者没装 ZCode，再填 API Key。环境变量：<code>ZAI_API_KEY</code> / <code>GLM_API_KEY</code> / <code>ZHIPU_API_KEY</code>。当前：<span id="st-zai" class="st">…</span></div>
+    <div class="row">
+      <select id="region"><option value="bigmodel-cn">国内版 open.bigmodel.cn</option><option value="global">国际版 api.z.ai</option></select>
+      <input id="k-zai" type="password" autocomplete="off" spellcheck="false" placeholder="API Key" />
+    </div>
+    <div class="row"><button id="save-zai">保存</button><button id="clear-zai">清除</button><button id="test-zcode">查一次</button></div>
+    <div id="out-zcode" class="out"></div>
+
+    <h2>不用填的</h2>
+    <ul>
+      <li>GPT：读本机 Codex（桌面版或 CLI）的登录。<button id="test-codex">查一次</button></li>
+      <li>Grok：读本机 Cursor 桌面版的登录，Grok Bot 的额度也在这个账号里。<button id="test-cursor">查一次</button></li>
+    </ul>
+    <div id="out-other" class="out"></div>
+    <p class="tip">Gemini / Claude / Kimi 的余额查询还没接入。</p>
+    <script src="./balance-settings.js"></script>
+  </body>
+</html>

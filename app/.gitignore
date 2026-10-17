@@ -1,0 +1,9 @@
+node_modules/
+dist/
+# 打包时由 tools/sync-assets.js 从 ../assets 复制进来，不提交
+assets/gpt/
+assets/gemini/
+assets/glm/
+assets/claude/
+assets/kimi/
+assets/grok/

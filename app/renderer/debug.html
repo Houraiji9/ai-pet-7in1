@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>AI 桌宠 调试：前台窗口</title>
+    <style>
+      body { font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif; font-size: 13px; margin: 12px; color: #222; }
+      h2 { font-size: 14px; margin: 14px 0 6px; }
+      .tip { color: #666; margin: 0 0 8px; }
+      table { border-collapse: collapse; width: 100%; }
+      td { border-bottom: 1px solid #eee; padding: 4px 6px; vertical-align: top; word-break: break-all; }
+      td.k { width: 110px; color: #555; white-space: nowrap; }
+      .big { font-size: 16px; font-weight: bold; }
+      .warn { color: #c0392b; }
+      .ok { color: #27863f; }
+      button { margin-right: 6px; }
+      code { background: #f4f4f4; padding: 0 3px; }
+    </style>
+  </head>
+  <body>
+    <p class="tip">这个窗口会一直置顶。保持它开着，去点一下你想识别的程序（比如 Claude），下面就会显示那个程序的 exe 名字和完整路径。
+      exe 名字不对的话，点「打开配置文件夹」，用记事本改 <code>agents.jsonc</code> 里的 executables，再在托盘菜单点「重新加载配置」。</p>
+    <div>
+      <button id="copy">复制当前前台信息</button>
+      <button id="copyHist">复制最近记录</button>
+      <button id="cfg">打开配置文件夹</button>
+    </div>
+    <h2>当前前台窗口</h2>
+    <table id="fg"></table>
+    <h2>桌宠状态</h2>
+    <table id="pet"></table>
+    <h2>最近的前台程序（不含桌宠自己）</h2>
+    <table id="hist"></table>
+    <h2>角色素材</h2>
+    <table id="species"></table>
+    <h2>查看余额（每个来源最近一次查询；不显示任何 Key / token）</h2>
+    <div><button id="balset">打开余额设置…</button></div>
+    <table id="balance"></table>
+    <h2>配置与识别方式</h2>
+    <table id="cfgt"></table>
+    <script src="./debug.js"></script>
+  </body>
+</html>

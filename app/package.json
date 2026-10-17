@@ -1,0 +1,61 @@
+{
+  "name": "ai-pet-7in1",
+  "version": "0.1.0",
+  "private": true,
+  "description": "七合一 AI 桌宠：根据当前前台的 Agent 程序自动切换 GPT / Gemini / GLM / Claude / Kimi / DeepSeek / Grok 形象（基于 PC2005-cloud/dsh-pet 独立模式改造）",
+  "main": "main/main.js",
+  "author": "Houraiji",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/",
+    "smoke": "node tools/smoke.js && node tools/smoke-ui.js",
+    "sync-assets": "node tools/sync-assets.js",
+    "build:win": "node tools/sync-assets.js && electron-builder --win portable --x64",
+    "build:win-dir": "node tools/sync-assets.js && electron-builder --win dir --x64"
+  },
+  "dependencies": {
+    "koffi": "^2.9.0"
+  },
+  "devDependencies": {
+    "electron": "^43.3.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.houraiji.ai-pet-7in1",
+    "productName": "AI-Pet-7in1",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main/**",
+      "renderer/**",
+      "config/**",
+      "assets/**",
+      "build/tray.png",
+      "package.json",
+      "LICENSE*",
+      "!node_modules/koffi/build/koffi/{darwin_*,freebsd_*,linux_*,musl_*,openbsd_*,win32_arm64,win32_ia32}/**",
+      "!node_modules/koffi/src/**",
+      "!node_modules/koffi/doc/**"
+    ],
+    "asarUnpack": [
+      "node_modules/koffi/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "AI-Pet-7in1-${version}-portable.exe"
+    }
+  }
+}
