@@ -1,0 +1,13 @@
+node_modules/
+dist/
+out/
+*.log
+old-codex-pet/
+work/
+design/ref-fanworks/
+app/node_modules/
+.cache/
+design/*
+!design/gpt/
+design/gpt/*
+!design/gpt/codex-idle.png
