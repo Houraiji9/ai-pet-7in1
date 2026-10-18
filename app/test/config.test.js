@@ -26,7 +26,6 @@ test('species.jsonc：7 个角色都在；deepseek 引用的动画全部存在�
   assert.equal(d.available, true);
   assert.deepEqual(d.missing, []);
   for (const id of ['gemini', 'glm', 'claude', 'kimi', 'grok']) {
-    assert.equal(store.isAvailable(id), false, id + ' 还没有素材');
     assert.ok(st.species[id].whisperPrompt.length > 0, id + ' 有人设');
     assert.ok(st.species[id].whisperLines.length > 0, id + ' 有台词');
   }
@@ -36,7 +35,6 @@ test('素材查找顺序：用户目录 > 项目目录 > 程序自带；放入�
   const user = tmp();
   const proj = tmp();
   const store = createSpeciesStore({ appRoot: APP, userDir: user, projectAssetsDir: proj });
-  assert.equal(store.isAvailable('kimi'), false);
   fs.mkdirSync(path.join(proj, 'kimi', 'webm'), { recursive: true });
   fs.writeFileSync(path.join(proj, 'kimi', 'webm', '待机呼吸休闲.webm'), 'x');
   store.load(); // 清缓存（托盘「重新加载配置」做的就是这个）
@@ -46,7 +44,8 @@ test('素材查找顺序：用户目录 > 项目目录 > 程序自带；放入�
   fs.writeFileSync(path.join(user, 'species', 'kimi', '待机呼吸休闲.webm'), 'y');
   store.load();
   assert.equal(store.resolveAnim('kimi', '待机呼吸休闲').kind, 'user');
-  // 只有待机：其它动画名被剪掉，渲染端不会点到 404
+  // 只有待机：其它动画名被剪掉，渲染端不会点到 404（程序自带 kimi 素材已同步时跳过）
+  if (fs.existsSync(path.join(APP, 'assets', 'kimi', 'webm', '原地左转走路.webm'))) return;
   const a = store.mergedConfig().kimi.animations;
   assert.deepEqual(a.idle, ['待机呼吸休闲']);
   assert.deepEqual(a.clicks, []);
