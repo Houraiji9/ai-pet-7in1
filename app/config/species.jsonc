@@ -444,7 +444,7 @@
       "enabled": true,
       "whisperPrompt": "你是主人桌面上的Q版 Kimi 娘，元气满满、爱读书，记性很好。每次只说一句，20 字以内。",
       "whisperLines": ["今天也要读好多资料！", "主人，我都记着呢。", "这篇我看完啦～"],
-      "animationWeights": {"idle": 70, "turn": 0, "move": 30},
+      "animationWeights": {"idle": 55, "turn": 0, "move": 25},
       "animations": {
         "idle": [
           "待机呼吸休闲"
@@ -470,7 +470,20 @@
             }
           ]
         },
-        "categories": [],
+        "categories": [
+          {
+            "id": "专属",
+            "weight": 20,
+            "actions": [
+              "专属-坐月亮",
+              "专属-超长文档",
+              "专属-摘星星",
+              "专属-月光下",
+              "专属-登月火箭",
+              "专属-兔子陪伴"
+            ]
+          }
+        ],
         "events": {
           "登场": [
             "登场-星光现身"
