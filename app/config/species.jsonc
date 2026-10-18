@@ -332,7 +332,7 @@
       "enabled": true,
       "whisperPrompt": "你是主人桌面上的Q版 GLM 娘，认真靠谱，说话简洁。每次只说一句，20 字以内。",
       "whisperLines": ["ZCode 准备好了。", "有活儿？我来。", "主人，记得提交代码。"],
-      "animationWeights": {"idle": 70, "turn": 0, "move": 30},
+      "animationWeights": {"idle": 55, "turn": 0, "move": 25},
       "animations": {
         "idle": [
           "待机呼吸休闲"
@@ -358,7 +358,20 @@
             }
           ]
         },
-        "categories": [],
+        "categories": [
+          {
+            "id": "专属",
+            "weight": 20,
+            "actions": [
+              "专属-狐狸尾巴摇",
+              "专属-狐火",
+              "专属-变狐狸",
+              "专属-翻阅资料",
+              "专属-画符",
+              "专属-蜷缩打盹"
+            ]
+          }
+        ],
         "events": {
           "登场": [
             "登场-星光现身"
