@@ -394,11 +394,30 @@ class PetSprite {
       return;
     }
     const gen = ++this.gen;
+    const url = this.assetBase + encodeURIComponent(next) + (S.ANIMATION_EXT || '.webm');
+    // 同一段动画重播（待机播完再抽到待机最常见）：不换 <video>、不重新加载，前台视频原地从头播。
+    // 以前会把同一文件再载入后台视频并做 opacity 交叉淡入淡出，两层半透明叠在一起 → 每次循环「闪一下」。
+    const frontEl = this.front === 0 ? this.videoA : this.videoB;
+    if (!pending && frontEl && frontEl.dataset.src === url && frontEl.readyState >= 2) {
+      this.pending = null;
+      frontEl.loop = !nextOnce;
+      frontEl.onended = nextOnce ? () => this.handleEnded() : null;
+      frontEl.style.transform = this.facing === 'right' ? 'scaleX(-1)' : '';
+      frontEl.currentTime = 0;
+      frontEl.play().catch(() => {});
+      if (this.pendingSquash) {
+        this.pendingSquash = false;
+        this.startSquash(frontEl);
+      }
+      if (this.pendingMove) this.startMoveDrive(frontEl);
+      return;
+    }
     this.pending = { anim: next, once: nextOnce, gen };
     const target = this.front === 0 ? this.videoB : this.videoA;
     const el = target;
     if (!el) return;
-    el.src = this.assetBase + encodeURIComponent(next) + (S.ANIMATION_EXT || '.webm');
+    el.dataset.src = url;
+    el.src = url;
     el.loop = !nextOnce;
     el.muted = true;
     el.autoplay = true;
@@ -424,15 +443,31 @@ class PetSprite {
       el.onerror = null;
       if (this.pending && this.pending.gen !== gen) return;
       const old = this.front === 0 ? this.videoA : this.videoB;
+      // 无缝切换：新视频立刻不透明并压在上层，旧视频保持显示最后一帧，等新视频真正画出第一帧后再隐藏，
+      // 中间不会出现两层都半透明 / 空白的一帧（以前 0.18s opacity 交叉淡化会让人物闪一下）。
+      el.style.transform = this.facing === 'right' ? 'scaleX(-1)' : '';
       el.classList.add('is-front');
       if (old && old !== el) {
-        old.classList.remove('is-front');
         old.onended = null;
-        old.pause();
+        old.classList.add('is-leaving');
+        const hideOld = () => {
+          const cur = this.front === 0 ? this.videoA : this.videoB;
+          old.classList.remove('is-leaving');
+          if (old === cur) return; // 期间又切回了它
+          old.classList.remove('is-front');
+          old.pause();
+        };
+        if (typeof el.requestVideoFrameCallback === 'function') {
+          let done = false;
+          const fin = () => { if (!done) { done = true; hideOld(); } };
+          el.requestVideoFrameCallback(() => requestAnimationFrame(fin));
+          window.setTimeout(fin, 250); // 兜底：暂停中/后台窗口不回调
+        } else {
+          requestAnimationFrame(() => requestAnimationFrame(hideOld));
+        }
       }
       this.front = this.front === 0 ? 1 : 0;
       this.pending = null;
-      el.style.transform = this.facing === 'right' ? 'scaleX(-1)' : '';
       el.play().catch(() => {});
       // 点击 Q 弹：等新动画就位后才压（压的是新点击动画的首帧，与浏览器一致）
       if (this.pendingSquash) {

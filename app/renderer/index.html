@@ -39,6 +39,7 @@
         width: var(--pet-size, 462px);
         height: calc(var(--pet-size, 462px) * 9 / 16);
         pointer-events: none;
+        isolation: isolate;
       }
       video.pet-video {
         position: absolute;
@@ -48,16 +49,21 @@
         object-fit: contain;
         pointer-events: none;
         opacity: 0;
-        transition: opacity 0.18s ease;
+        z-index: 0;
       }
+      /* 不做 opacity 过渡：交叉淡化时两层都半透明，透明底视频会闪 */
       video.pet-video.is-front {
         opacity: 1;
+        z-index: 1;
+      }
+      video.pet-video.is-front.is-leaving {
+        z-index: 0;
       }
       .pet-hit {
         position: absolute;
         pointer-events: auto;
         cursor: grab;
-        z-index: 1;
+        z-index: 2;
       }
       .pet-hit.dragging {
         cursor: grabbing;
