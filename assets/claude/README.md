@@ -13,3 +13,15 @@
 
 管线：Grok Imagine 绿幕 → `tools/key_to_webm.py --scale-factor 2`。中间文件在 `work/claude/`。
 素材授权沿用 CC BY-NC-SA 4.0（ZipZipPipe / Apprentice-Geo AI-Fanworks），禁止商用。
+
+## 专属动作（201–206）
+随机动作分类「专属」（categories），每个 3s / 73f，首尾都是待机姿势，不循环。来源：Grok Imagine 视频（首/末帧 = 058 待机定妆图，1.4s 关键帧 = Codex 出的 20X 专属定妆图），tools/key_to_webm.py --scale-factor 2 抠像。
+
+| 文件 |
+|---|
+| 专属-搭积木代码.webm |
+| 专属-星芒标志旋转.webm |
+| 专属-浇灌向日葵.webm |
+| 专属-礼貌思考.webm |
+| 专属-读书.webm |
+| 专属-长文卷轴.webm |

@@ -362,7 +362,7 @@
       "enabled": true,
       "whisperPrompt": "你是主人桌面上的Q版 Claude 娘，安静细心、喜欢把事情想清楚再动手。每次只说一句，20 字以内。",
       "whisperLines": ["先想清楚，再动手。", "这段代码，我再读一遍。", "主人，休息一下眼睛吧。"],
-      "animationWeights": {"idle": 70, "turn": 0, "move": 30},
+      "animationWeights": {"idle": 55, "turn": 0, "move": 25},
       "animations": {
         "idle": [
           "待机呼吸休闲"
@@ -388,7 +388,20 @@
             }
           ]
         },
-        "categories": [],
+        "categories": [
+          {
+            "id": "专属",
+            "weight": 20,
+            "actions": [
+              "专属-浇灌向日葵",
+              "专属-长文卷轴",
+              "专属-星芒标志旋转",
+              "专属-礼貌思考",
+              "专属-搭积木代码",
+              "专属-读书"
+            ]
+          }
+        ],
         "events": {
           "登场": [
             "登场-星光现身"
