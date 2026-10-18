@@ -44,6 +44,22 @@ def key(rgb, lo=18, hi=70):
     # 半透明边缘再压一点绿
     return np.dstack([out, a*255]).clip(0,255).astype(np.uint8)
 
+def key_protect(rgb, band=2, bg_dist=60, lo=18, hi=70):
+    """保护内部绿色道具（向日葵叶子、彩虹光环的绿段）：只有「接近纯绿幕色」的像素算背景，
+    离背景超过 band 像素的地方一律不透明且不去溢色；背景边缘 band 像素内仍走普通 key()。"""
+    from PIL import ImageFilter
+    h, w = rgb.shape[:2]
+    border = np.concatenate([rgb[0], rgb[-1], rgb[:,0], rgb[:,-1]])
+    bgc = np.median(border, axis=0)
+    dist = np.sqrt(((rgb - bgc)**2).sum(-1))
+    bgm = Image.fromarray(((dist < bg_dist)*255).astype(np.uint8))
+    near = np.asarray(bgm.filter(ImageFilter.MaxFilter(band*2+1))) > 0
+    out = key(rgb, lo, hi)
+    keep = ~near
+    out[keep, :3] = rgb[keep].clip(0,255).astype(np.uint8)
+    out[keep, 3] = 255
+    return out
+
 def bbox(alpha, t=128):
     ys, xs = np.where(alpha > t)
     return xs.min(), xs.max(), ys.min(), ys.max()
@@ -59,6 +75,8 @@ def main():
     ap.add_argument('--scale-factor', type=float, default=1.0)
     ap.add_argument('--frames-dir'); ap.add_argument('--match')
     ap.add_argument('--crf', type=int, default=30)
+    ap.add_argument('--protect', type=int, default=0, help='>0：保护内部绿色道具，背景边缘带宽（像素）')
+    ap.add_argument('--bg-dist', type=float, default=60, help='--protect 时与绿幕色距离小于此值算背景')
     a = ap.parse_args()
     global W, H, CX
     F = a.scale_factor
@@ -69,7 +87,7 @@ def main():
         tgt_h, foot, CX = (my1-my0+1)*F, (my1+1)*F, (mx0+mx1+1)/2*F
     fr = frames_dir(a.frames_dir) if a.frames_dir else frames(a.inp)
     if a.drop_last: fr = fr[:-1]
-    keyed = [key(f) for f in fr]
+    keyed = [key_protect(f, a.protect, a.bg_dist) if a.protect else key(f) for f in fr]
     x0, x1, y0, y1 = bbox(keyed[a.ref_frame][...,3])
     s = a.scale*F if a.scale else tgt_h / (y1 - y0 + 1)
     cx = (x0 + x1 + 1) / 2
