@@ -25,6 +25,7 @@ const { parseJsonc } = require('./jsonc.js');
 const { CHARACTERS, basename, validateAgentsConfig, classify } = require('./matcher.js');
 const { Switcher } = require('./switcher.js');
 const { createSpeciesStore } = require('./species.js');
+const { createUiSettings, clampScale, autoStartExePath, SIZE_PRESETS } = require('./ui-settings.js');
 const { createPetApi } = require('./pet-api.js');
 const { createForegroundProvider } = require('./foreground.js');
 const { createSecretStore } = require('./balance/secrets.js');
@@ -136,6 +137,38 @@ if (!DPI_PROBE && !app.requestSingleInstanceLock()) {
 
 // ---------- 配置 ----------
 const store = createSpeciesStore({ appRoot: APP_ROOT, userDir: USER_DIR, projectAssetsDir: PROJECT_ASSETS });
+/** 界面设置：桌宠大小倍数 + 开机自启（ui-settings.json） */
+const uiSettings = createUiSettings(path.join(USER_DIR, 'ui-settings.json'));
+
+// ---------- 桌宠大小 ----------
+function setPetScale(v, why) {
+  const next = clampScale(v);
+  if (next === uiSettings.get().petScale) return;
+  uiSettings.setPetScale(next);
+  log(`桌宠大小 → ${Math.round(next * 100)}%（${why}）`);
+  lastRequestedBounds.clear();
+  if (petWin && !petWin.isDestroyed()) petWin.webContents.send('pet:user-scale', next);
+  refreshTray();
+}
+
+// ---------- 开机自动启动（只在 Windows 生效；便携版指向真正的 exe，而不是临时解压目录） ----------
+function autoStartSupported() {
+  return process.platform === 'win32' && app.isPackaged;
+}
+function applyAutoStart(on) {
+  if (!autoStartSupported()) return;
+  try {
+    app.setLoginItemSettings({ openAtLogin: !!on, path: autoStartExePath(process.env, process.execPath), args: [] });
+  } catch (e) {
+    log('设置开机自启失败：' + e);
+  }
+}
+function setAutoStart(on) {
+  uiSettings.setAutoStart(on);
+  applyAutoStart(on);
+  log(on ? '已开启开机自动启动' : '已关闭开机自动启动');
+  refreshTray();
+}
 let agents = validateAgentsConfig({ rules: [] }).config;
 let agentsErrors = [];
 let agentsFile = '';
@@ -306,7 +339,8 @@ function createPetWindow() {
   const geo = deskGeometry();
   const area = geo.hull;
   const scale = petScale();
-  const { width, height } = petWindowSize(store.get().size * scale);
+  const userScale = uiSettings.get().petScale;
+  const { width, height } = petWindowSize(store.get().size * userScale * scale);
   const win = new BrowserWindow({
     width,
     height,
@@ -386,6 +420,7 @@ function createPetWindow() {
         bridge: '1',
         openTarget: 'site',
         scale: String(scale),
+        userScale: String(userScale),
         petIndex: '0',
         species: switcher.current,
         workAreaW: String(area.width),
@@ -466,6 +501,8 @@ function registerIpc() {
     if (payload && payload.mode === 'lock') setMode('lock', String(payload.species || ''));
     else setMode('auto');
   });
+  // 桌宠大小：右键菜单选档 / Ctrl+滚轮
+  ipcMain.on('pet:set-user-scale', (_e, v) => setPetScale(v, '桌宠窗口'));
   ipcMain.on('debug:copy', (_e, textValue) => clipboard.writeText(String(textValue || '')));
   ipcMain.on('debug:open-balance-settings', () => openBalanceSettings());
   // ---- 余额设置窗口：明文 Key 只进不出（窗口只拿得到「已设置 / 未设置 / 来自环境变量」） ----
@@ -540,6 +577,23 @@ function buildTrayMenu() {
   items.push({ type: 'separator' });
   items.push({ label: `查看余额（${speciesName(switcher.current)}）`, click: () => petWin && !petWin.isDestroyed() && petWin.webContents.executeJavaScript('sprites[0] && sprites[0].onMenuAction({ action: "show-balance" })').catch(() => {}) });
   items.push({ label: '余额设置（API Key）…', click: openBalanceSettings });
+  items.push({ type: 'separator' });
+  const curScale = uiSettings.get().petScale;
+  const onPreset = SIZE_PRESETS.some((p) => p.scale === curScale);
+  items.push({
+    label: `桌宠大小（现在 ${Math.round(curScale * 100)}%）`,
+    submenu: SIZE_PRESETS.map((p) => ({ label: p.label, type: 'radio', checked: p.scale === curScale, click: () => setPetScale(p.scale, '托盘菜单') })).concat(
+      onPreset ? [] : [{ label: `自定义（${Math.round(curScale * 100)}%）`, type: 'radio', checked: true, enabled: false }],
+      [{ type: 'separator' }, { label: '小技巧：鼠标放在桌宠身上，按住 Ctrl 滚动滚轮也能调', enabled: false }],
+    ),
+  });
+  items.push({
+    label: '开机自动启动',
+    type: 'checkbox',
+    checked: uiSettings.get().autoStart,
+    enabled: autoStartSupported(),
+    click: (mi) => setAutoStart(mi.checked),
+  });
   items.push({ type: 'separator' });
   items.push({ label: '调试：查看前台窗口…', click: openDebugWindow });
   items.push({
@@ -733,6 +787,16 @@ function startSmoke() {
           // 走真实的渲染端右键菜单处理函数 → IPC → 主进程 setMode
           const leaf = step.do === 'menu-lock' ? { action: 'species-lock', species: step.species } : { action: 'species-auto' };
           await petWin.webContents.executeJavaScript(`sprites[0].onMenuAction(${JSON.stringify(leaf)}); true`);
+        } else if (step.do === 'pet-size' || step.do === 'wheel' || step.do === 'size-probe') {
+          // 桌宠大小：菜单选档 / Ctrl+滚轮 / 读当前尺寸和脚底位置
+          if (step.do === 'pet-size') await petWin.webContents.executeJavaScript(`sprites[0].onMenuAction({ action: 'pet-size', scale: ${Number(step.scale)} }); true`);
+          if (step.do === 'wheel')
+            await petWin.webContents.executeJavaScript(`(() => { const h = sprites[0].hit; for (let i = 0; i < ${Number(step.n || 1)}; i++) h.dispatchEvent(new WheelEvent('wheel', { deltaY: ${Number(step.deltaY || -100)}, ctrlKey: true, bubbles: true, cancelable: true })); return true; })()`);
+          rec.size = await petWin.webContents.executeJavaScript(
+            `(() => { const s = sprites[0]; return { size: s.size, footX: s.pos.x + s.halfW, footY: s.pos.y + s.height, userScale: CONFIG.userScale }; })()`,
+          );
+          rec.saved = uiSettings.get().petScale;
+          rec.win = petWin.getContentBounds();
         } else if (step.do === 'context-menu') {
           rec.menu = await petWin.webContents.executeJavaScript(`(async () => {
             const hit = document.querySelector('.pet-hit'); const r = hit.getBoundingClientRect();
@@ -824,6 +888,8 @@ app.whenReady().then(() => {
   });
 
   registerIpc();
+  // 每次启动按保存的设置重写一次自启项：便携版 exe 被挪了位置也能跟上
+  if (uiSettings.get().autoStart) applyAutoStart(true);
   createPetWindow();
   createTray();
   startWatcher();

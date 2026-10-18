@@ -42,4 +42,12 @@ contextBridge.exposeInMainWorld('petBridge', {
   setSpeciesMode(payload) {
     ipcRenderer.send('pet:species-mode', payload);
   },
+  // ---- ai-pet-7in1：桌宠大小 ----
+  /** 请主进程改大小倍数（保存后会经 onUserScale 回推） */
+  setUserScale(v) {
+    ipcRenderer.send('pet:set-user-scale', Number(v));
+  },
+  onUserScale(cb) {
+    ipcRenderer.on('pet:user-scale', (e, v) => cb(v));
+  },
 });

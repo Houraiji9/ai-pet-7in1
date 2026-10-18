@@ -85,7 +85,7 @@ async function boot() {
       return;
     }
     for (const s of sprites) s.dispose();
-    sprites = [new PetSprite(pet)];
+    sprites = [new PetSprite(scaledPet(pet))];
     window.__dshPetDebug.configOk = true;
     window.__dshPetDebug.spriteCount = sprites.length;
     for (const s of sprites) s.playIdle();

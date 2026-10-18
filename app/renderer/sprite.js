@@ -191,6 +191,8 @@ class PetSprite {
     this.hit.addEventListener('pointermove', (e) => this.onPointerMove(e), { signal: ac.signal });
     this.hit.addEventListener('click', () => this.onClick(), { signal: ac.signal });
     this.hit.addEventListener('contextmenu', (e) => this.onContextMenu(e), { signal: ac.signal });
+    // ai-pet-7in1：Ctrl+滚轮调大小（见 pet-size.js）
+    this.hit.addEventListener('wheel', (e) => onPetWheel(e), { signal: ac.signal, passive: false });
     window.addEventListener('pointerup', (e) => this.onPointerUp(e), { signal: ac.signal });
     window.addEventListener('pointercancel', (e) => this.onPointerUp(e), { signal: ac.signal });
     this.hit.addEventListener('lostpointercapture', (e) => this.onPointerUp(e), { signal: ac.signal });
@@ -1201,6 +1203,7 @@ class PetSprite {
       { label: '碎碎念', action: 'whisper' },
       { label: '回到初始位置', action: 'home' },
       speciesMenuBranch(this.pet.id),
+      petSizeMenuBranch(),
       { label: '重载配置', action: 'reload' },
     ];
     const tree = tools.concat(S.buildMenuTree(this.animations));
@@ -1236,6 +1239,10 @@ class PetSprite {
       if (window.petBridge && window.petBridge.setSpeciesMode) {
         window.petBridge.setSpeciesMode(leaf.action === 'species-auto' ? { mode: 'auto' } : { mode: 'lock', species: leaf.species });
       }
+      return;
+    }
+    if (leaf.action === 'pet-size') {
+      requestPetScale(leaf.scale);
       return;
     }
     if (leaf.action === 'open-site') {

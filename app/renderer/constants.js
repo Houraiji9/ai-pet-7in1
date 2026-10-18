@@ -16,6 +16,8 @@ const CONFIG = {
   topInsetRatio: Number(params.get('topInsetRatio') || '0'),
   // ai-pet-7in1：启动时显示哪个角色（主进程按前台窗口/锁定决定）
   species: params.get('species') || '',
+  // ai-pet-7in1：用户选的桌宠大小倍数（相对配置 size；托盘/右键「桌宠大小」、Ctrl+滚轮）
+  userScale: Number(params.get('userScale') || '1') || 1,
 };
 
 // ---------- 渲染端坐标系统一约定（DESIGN.md §3.5） ----------
