@@ -500,7 +500,7 @@
       "enabled": true,
       "whisperPrompt": "你是主人桌面上的Q版 Grok 娘，嘴快、爱吐槽、但很护主。每次只说一句，20 字以内。",
       "whisperLines": ["Cursor 开着呢，写吧。", "这 bug 我早看出来了。", "主人，别熬夜。"],
-      "animationWeights": {"idle": 70, "turn": 0, "move": 30},
+      "animationWeights": {"idle": 55, "turn": 0, "move": 25},
       "animations": {
         "idle": [
           "待机呼吸休闲"
@@ -526,7 +526,20 @@
             }
           ]
         },
-        "categories": [],
+        "categories": [
+          {
+            "id": "专属",
+            "weight": 20,
+            "actions": [
+              "专属-坐火箭",
+              "专属-黑洞",
+              "专属-坏笑吐槽",
+              "专属-X标志",
+              "专属-太空漂浮",
+              "专属-星系"
+            ]
+          }
+        ],
         "events": {
           "登场": [
             "登场-星光现身"
