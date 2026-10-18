@@ -257,7 +257,7 @@
         }
       }
     },
-    // 素材待做：放好 5 个 webm（待机呼吸休闲 / 原地左转走路 / 点击回应-开心害羞 / 被鼠标拖拽悬空反馈 / 登场-星光现身）就能用
+    // Gemini 娘：5 个核心动作，素材在 ai-pet-7in1/assets/gemini/webm/（1280x720）
     "gemini": {
       "name": "Gemini 娘",
       "enabled": true,
@@ -300,7 +300,7 @@
         }
       }
     },
-    // 素材待做：放好 5 个 webm（待机呼吸休闲 / 原地左转走路 / 点击回应-开心害羞 / 被鼠标拖拽悬空反馈 / 登场-星光现身）就能用
+    // GLM 娘：5 个核心动作，素材在 ai-pet-7in1/assets/glm/webm/（1280x720）
     "glm": {
       "name": "GLM 娘",
       "enabled": true,
@@ -343,7 +343,7 @@
         }
       }
     },
-    // 素材待做：放好 5 个 webm（待机呼吸休闲 / 原地左转走路 / 点击回应-开心害羞 / 被鼠标拖拽悬空反馈 / 登场-星光现身）就能用
+    // Claude 娘：5 个核心动作，素材在 ai-pet-7in1/assets/claude/webm/（1280x720）
     "claude": {
       "name": "Claude 娘",
       "enabled": true,
