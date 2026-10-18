@@ -220,7 +220,7 @@
       "enabled": true,
       "whisperPrompt": "你是主人桌面上的Q版白发龙娘 GPT，温柔、稳重、有点小骄傲，喜欢帮主人整理思路。每次只说一句，20 字以内。",
       "whisperLines": ["主人，要不要先列个计划？", "Codex 那边我盯着呢。", "尾巴有点重，借我靠一下。", "慢慢来，一步一步做。", "这个需求，我们拆小一点吧。"],
-      "animationWeights": {"idle": 70, "turn": 0, "move": 30},
+      "animationWeights": {"idle": 55, "turn": 0, "move": 25},
       "animations": {
         "idle": [
           "待机呼吸休闲"
@@ -246,7 +246,20 @@
             }
           ]
         },
-        "categories": [],
+        "categories": [
+          {
+            "id": "专属",
+            "weight": 20,
+            "actions": [
+              "专属-展翅飞起",
+              "专属-光球魔法",
+              "专属-龙息火花",
+              "专属-尾巴卷成团睡",
+              "专属-画画生图",
+              "专属-对话气泡"
+            ]
+          }
+        ],
         "events": {
           "登场": [
             "登场-星光现身"

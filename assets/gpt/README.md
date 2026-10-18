@@ -14,3 +14,15 @@ v2 做法：绿幕原片逐帧 Real-ESRGAN（realesr-animevideov3，×2）超分
 来源：Grok Imagine 视频（首/末帧锚定定妆图）；走路、拖拽的关键帧由 Codex CLI 生图。
 管线：tools/key_to_webm.py（g-max(r,b) 软阈值抠像 + 去溢色 + 预乘缩放 + 脚底对齐）。中间文件在 work/gpt/。
 素材授权沿用 CC BY-NC-SA 4.0（ZipZipPipe / Apprentice-Geo AI-Fanworks），禁止商用。
+
+## 专属动作（201–206）
+随机动作分类「专属」（categories），每个 3s / 73f，首尾都是待机姿势，不循环。来源：Grok Imagine 视频（首/末帧 = 058 待机定妆图，1.4s 关键帧 = Codex 出的 20X 专属定妆图），tools/key_to_webm.py --scale-factor 2 抠像。
+
+| 文件 |
+|---|
+| 专属-光球魔法.webm |
+| 专属-对话气泡.webm |
+| 专属-尾巴卷成团睡.webm |
+| 专属-展翅飞起.webm |
+| 专属-画画生图.webm |
+| 专属-龙息火花.webm |
