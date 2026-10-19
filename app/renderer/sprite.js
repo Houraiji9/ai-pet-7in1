@@ -402,7 +402,7 @@ class PetSprite {
       this.pending = null;
       frontEl.loop = !nextOnce;
       frontEl.onended = nextOnce ? () => this.handleEnded() : null;
-      frontEl.style.transform = this.facing === 'right' ? 'scaleX(-1)' : '';
+      frontEl.style.transform = this.mirrorFor(next) ? 'scaleX(-1)' : '';
       frontEl.currentTime = 0;
       frontEl.play().catch(() => {});
       if (this.pendingSquash) {
@@ -445,7 +445,7 @@ class PetSprite {
       const old = this.front === 0 ? this.videoA : this.videoB;
       // 无缝切换：新视频立刻不透明并压在上层，旧视频保持显示最后一帧，等新视频真正画出第一帧后再隐藏，
       // 中间不会出现两层都半透明 / 空白的一帧（以前 0.18s opacity 交叉淡化会让人物闪一下）。
-      el.style.transform = this.facing === 'right' ? 'scaleX(-1)' : '';
+      el.style.transform = this.mirrorFor(next) ? 'scaleX(-1)' : '';
       el.classList.add('is-front');
       if (old && old !== el) {
         old.onended = null;
@@ -596,7 +596,9 @@ class PetSprite {
       : actions[Math.floor(Math.random() * actions.length)];
     if (!chosen) return false;
     const mp = Object.assign({}, moves.default, chosen.params || {});
-    const dir = (this.facing === 'right') !== this.animations.turn.includes(this.anim) ? 1 : -1;
+    // 与上游一致：只看当前朝向。之前多了「当前动画是转身就反向」的判断，而转身播完时 facing 已经翻过、
+    // this.anim 还是转身动画，结果转身后立刻走路会背着脸倒着走（向左时最明显）
+    const dir = this.facing === 'right' ? 1 : -1;
     const W = VIEW.w;
     const H = VIEW.h;
     const distScale = this.size / S.PET_REF_WIDTH;
@@ -615,7 +617,7 @@ class PetSprite {
       areas: AREAS,
     });
     if (!plan) return false;
-    this.pendingMove = { ...plan, dir, leadSec: mp.leadSec, tailSec: mp.tailSec };
+    this.pendingMove = { ...plan, dir, leadSec: mp.leadSec, tailSec: mp.tailSec, speed: (mp.speed || 0) * distScale };
     this.anim = chosen.name;
     this.once = true;
     this.switchTo(chosen.name, true);
@@ -627,6 +629,7 @@ class PetSprite {
     if (!pm || this.moveRef !== null) return;
     this.pendingMove = null;
     const { startRatio, startYRatio, targetRatio, dir, totalRatio, leadSec, tailSec } = pm;
+    if (pm.speed > 0) return this.startLoopMoveDrive(el, pm);
     const duration = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 10.09;
     const travelWindow = Math.max(0.1, duration - leadSec - tailSec);
     const token = ++this.moveToken;
@@ -649,6 +652,45 @@ class PetSprite {
       }
     };
     this.moveRef = requestAnimationFrame(step);
+  }
+
+  // 短循环走路（新角色的「原地左转走路」只有 2 秒一圈）：按步速循环播放走路动画，
+  // 走完整数圈再停，脚步和位移对得上，不会在 1 秒里滑过两三百像素
+  startLoopMoveDrive(el, pm) {
+    const { startRatio, startYRatio, targetRatio, dir, totalRatio, speed } = pm;
+    const clip = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 2;
+    const W = VIEW.w;
+    const H = VIEW.h;
+    const distPx = totalRatio * W;
+    const loops = Math.max(1, Math.round(distPx / speed / clip));
+    const travelMs = loops * clip * 1000;
+    el.loop = true;
+    el.onended = null;
+    const token = ++this.moveToken;
+    const t0 = performance.now();
+    if (window.AIPET_MOVE_LOG) console.log('[move] start dir=' + dir + ' dist=' + distPx.toFixed(1) + 'px loops=' + loops + ' speed=' + (distPx / (travelMs / 1000)).toFixed(1) + 'px/s facing=' + this.facing);
+    const step = () => {
+      if (this.moveToken !== token) return;
+      const k = Math.min(1, (performance.now() - t0) / travelMs);
+      const ratioX = startRatio + dir * totalRatio * k;
+      this.sendBounds(ratioX * W - this.halfW, startYRatio * H - this.halfH);
+      if (k < 1) {
+        this.moveRef = requestAnimationFrame(step);
+      } else {
+        this.moveRef = null;
+        this.customPos = { rx: targetRatio, ry: startYRatio };
+        if (window.AIPET_MOVE_LOG) console.log('[move] end x=' + (ratioX * W).toFixed(1) + ' target=' + (targetRatio * W).toFixed(1));
+        this.handleEnded();
+      }
+    };
+    this.moveRef = requestAnimationFrame(step);
+  }
+
+  /** 是否要水平镜像：素材默认朝左（同 DeepSeek）；移动动作可在 species.jsonc 里写 "facing": "right" 声明素材本身朝右 */
+  mirrorFor(name) {
+    const act = (this.animations.moves?.actions || []).find((a) => a.name === name);
+    const native = (act && act.params && act.params.facing) || this.animations.moves?.default?.facing || 'left';
+    return this.facing !== native;
   }
 
   stopMove() {
@@ -816,14 +858,14 @@ class PetSprite {
       if (this.squashToken !== token) return;
       const u = Math.min((performance.now() - t0) / S.SQ_DURATION_MS, 1);
       const scale = S.squashScale(u, depth);
-      el.style.transform = (this.facing === 'right' ? 'scaleX(-1) ' : '') + 'scaleY(' + scale + ')';
+      el.style.transform = (this.mirrorFor(this.anim) ? 'scaleX(-1) ' : '') + 'scaleY(' + scale + ')';
       if (u < 1) {
         this.squashRef = requestAnimationFrame(step);
       } else {
         this.squashRef = null;
         el.style.transformOrigin = origin;
         // 恢复纯镜像（若期间 switchTo 重置过 transform，也以镜像为准）
-        el.style.transform = this.facing === 'right' ? 'scaleX(-1)' : '';
+        el.style.transform = this.mirrorFor(this.anim) ? 'scaleX(-1)' : '';
       }
     };
     this.squashRef = requestAnimationFrame(step);
