@@ -26,6 +26,8 @@ const { CHARACTERS, basename, validateAgentsConfig, classify } = require('./matc
 const { Switcher } = require('./switcher.js');
 const { createSpeciesStore } = require('./species.js');
 const { createUiSettings, clampScale, autoStartExePath, SIZE_PRESETS } = require('./ui-settings.js');
+const { createUpdater } = require('./updater.js');
+let updater = null;
 const { createPetApi } = require('./pet-api.js');
 const { createForegroundProvider } = require('./foreground.js');
 const { createSecretStore } = require('./balance/secrets.js');
@@ -151,7 +153,7 @@ function setPetScale(v, why) {
   refreshTray();
 }
 
-// ---------- 开机自动启动（只在 Windows 生效；便携版指向真正的 exe，而不是临时解压目录） ----------
+// ---------- 开机自动启动（只在 Windows 生效；安装版指向安装目录的 exe；便携版指向真正的 exe，而不是临时解压目录） ----------
 function autoStartSupported() {
   return process.platform === 'win32' && app.isPackaged;
 }
@@ -594,6 +596,10 @@ function buildTrayMenu() {
     enabled: autoStartSupported(),
     click: (mi) => setAutoStart(mi.checked),
   });
+  items.push({
+    label: updater && updater.getState() === 'downloading' ? '检查更新（新版本下载中…）' : updater && updater.getState() === 'ready' ? '检查更新（新版本已下好）' : '检查更新',
+    click: () => updater && updater.check(true),
+  });
   items.push({ type: 'separator' });
   items.push({ label: '调试：查看前台窗口…', click: openDebugWindow });
   items.push({
@@ -894,6 +900,9 @@ app.whenReady().then(() => {
   createTray();
   startWatcher();
   startWhisperTimer();
+  updater = createUpdater({ log, onState: () => refreshTray() });
+  setTimeout(() => updater.check(false), 15000); // 启动 15 秒后静默检查一次
+  setInterval(() => updater.check(false), 6 * 3600 * 1000); // 常驻时每 6 小时再查一次
 
   let displaysTimer = null;
   const scheduleDisplays = () => {

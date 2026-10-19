@@ -1,20 +1,22 @@
 {
   "name": "ai-pet-7in1",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "七合一 AI 桌宠：根据当前前台的 Agent 程序自动切换 GPT / Gemini / GLM / Claude / Kimi / DeepSeek / Grok 形象（基于 PC2005-cloud/dsh-pet 独立模式改造）",
   "main": "main/main.js",
   "author": "Houraiji",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "start": "electron .",
     "test": "node --test test/",
     "smoke": "node tools/smoke.js && node tools/smoke-ui.js",
     "sync-assets": "node tools/sync-assets.js",
-    "build:win": "node tools/sync-assets.js && electron-builder --win portable --x64",
-    "build:win-dir": "node tools/sync-assets.js && electron-builder --win dir --x64"
+    "build:win": "node tools/sync-assets.js && electron-builder --win nsis --x64 --publish never",
+    "build:win-dir": "node tools/sync-assets.js && electron-builder --win dir --x64",
+    "build:win-portable": "node tools/sync-assets.js && electron-builder --win portable --x64 --publish never"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "koffi": "^2.9.0"
   },
   "devDependencies": {
@@ -38,7 +40,8 @@
       "LICENSE*",
       "!node_modules/koffi/build/koffi/{darwin_*,freebsd_*,linux_*,musl_*,openbsd_*,win32_arm64,win32_ia32}/**",
       "!node_modules/koffi/src/**",
-      "!node_modules/koffi/doc/**"
+      "!node_modules/koffi/doc/**",
+      "NOTICE.md"
     ],
     "asarUnpack": [
       "node_modules/koffi/**"
@@ -46,7 +49,7 @@
     "win": {
       "target": [
         {
-          "target": "portable",
+          "target": "nsis",
           "arch": [
             "x64"
           ]
@@ -56,6 +59,29 @@
     },
     "portable": {
       "artifactName": "AI-Pet-7in1-${version}-portable.exe"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Houraiji9",
+        "repo": "ai-pet-7in1",
+        "releaseType": "release"
+      }
+    ],
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "installerLanguages": [
+        "zh_CN"
+      ],
+      "language": "2052",
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "七合一AI桌宠",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "AI-Pet-7in1-Setup-${version}.exe",
+      "differentialPackage": true
     }
   }
 }
