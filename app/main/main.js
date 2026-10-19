@@ -12,7 +12,8 @@
  */
 'use strict';
 
-const { app, BrowserWindow, ipcMain, screen, shell, protocol, Tray, Menu, nativeImage, clipboard, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, shell, protocol, Tray, Menu, nativeImage, clipboard, safeStorage, net } = require('electron');
+const { createAssetSync } = require('./asset-sync.js');
 const path = require('node:path');
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
@@ -287,8 +288,104 @@ function startWatcher() {
 }
 
 function pushSpecies() {
+  if (assetSync) assetSync.prioritize(switcher.current);
+  if (assetsReloadPending) {
+    // 切到的角色有新下好的动画：重建宠物窗口让新配置生效
+    assetsReloadPending = false;
+    reloadAll('新下载的动画生效');
+    return;
+  }
   if (petWin && !petWin.isDestroyed()) petWin.webContents.send('pet:species', { species: switcher.current, mode });
   refreshTray();
+}
+
+// ---------- 动画资源按需下载（main/asset-sync.js） ----------
+let assetSync = null;
+let assetsReloadPending = false;
+let assetsWin = null;
+let assetsWinDismissed = false;
+let assetsRetryTimer = null;
+const ASSET_SYNC_ON = app.isPackaged ? process.env.AIPET_ASSET_SYNC !== '0' : process.env.AIPET_ASSET_SYNC === '1';
+
+function assetsRoleText(s) {
+  const id = s.current ? s.current.split('/')[0] : '';
+  return id ? `正在下 ${speciesName(id)}，` : '';
+}
+function assetsStatusLabel() {
+  if (!assetSync) return '';
+  const s = assetSync.getStatus();
+  if (s.state === 'downloading') return `动画资源：下载中 ${s.percent}%（点开看进度）`;
+  if (s.state === 'checking') return '动画资源：检查中…';
+  if (s.state === 'offline') return '动画资源：暂时连不上 GitHub（点击重试）';
+  if (s.state === 'partial') return '动画资源：有些没下完（点击重试）';
+  if (s.state === 'done') return '动画资源：已是最新（点击重新检查）';
+  return '动画资源：检查更新';
+}
+function sendAssetsProgress(s) {
+  if (assetsWin && !assetsWin.isDestroyed()) assetsWin.webContents.send('assets:progress', { ...s, roleText: assetsRoleText(s) });
+}
+function openAssetsWindow() {
+  if (assetsWin && !assetsWin.isDestroyed()) { assetsWin.showInactive(); return; }
+  const wa = screen.getPrimaryDisplay().workArea;
+  const W = 340, H = 92;
+  assetsWin = new BrowserWindow({
+    width: W, height: H, x: wa.x + wa.width - W - 16, y: wa.y + wa.height - H - 16,
+    frame: false, transparent: true, resizable: false, skipTaskbar: true, alwaysOnTop: true, show: false, focusable: true,
+    title: 'AI 桌宠：下载动画资源',
+    webPreferences: { preload: path.join(APP_ROOT, 'renderer', 'assets-progress-preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  assetsWin.loadFile(path.join(APP_ROOT, 'renderer', 'assets-progress.html'));
+  assetsWin.webContents.once('did-finish-load', () => { sendAssetsProgress(assetSync.getStatus()); assetsWin.showInactive(); });
+  assetsWin.on('closed', () => { assetsWin = null; });
+}
+function scheduleAssetsRetry(ms) {
+  if (assetsRetryTimer) clearTimeout(assetsRetryTimer);
+  assetsRetryTimer = setTimeout(() => runAssetSync(false), ms);
+}
+function runAssetSync(manual) {
+  if (!assetSync) return;
+  if (manual && assetSync.isRunning()) { assetsWinDismissed = false; openAssetsWindow(); return; }
+  if (manual) assetsWinDismissed = false;
+  assetSync.prioritize(switcher.current);
+  assetSync.sync().then((s) => {
+    refreshTray();
+    if (s.state === 'offline' || s.state === 'partial') scheduleAssetsRetry(10 * 60 * 1000);
+    else scheduleAssetsRetry(6 * 3600 * 1000);
+    if (manual && s.state === 'done' && !s.totalFiles) {
+      assetsWinDismissed = false; openAssetsWindow();
+    }
+    if (assetsWin && !assetsWin.isDestroyed() && s.state === 'done') setTimeout(() => assetsWin && !assetsWin.isDestroyed() && assetsWin.close(), 4000);
+    if (manual && s.state === 'offline') { openAssetsWindow(); }
+  });
+}
+function initAssetSync() {
+  if (!ASSET_SYNC_ON) return;
+  assetSync = createAssetSync({
+    dir: path.join(USER_DIR, 'assets'),
+    characters: CHARACTERS,
+    fetch: (url, opts) => net.fetch(url, opts),
+    baseUrl: process.env.AIPET_ASSET_BASE || undefined,
+    log,
+    bundledFile: (id, name) => {
+      const f = path.join(APP_ROOT, 'assets', id, 'webm', name + '.webm');
+      return fs.existsSync(f) ? f : null;
+    },
+    onProgress: (s) => {
+      sendAssetsProgress(s);
+      // 要下的东西多（第一次启动）才弹进度窗；被用户点了「隐藏」就不再自己弹
+      if (s.state === 'downloading' && s.totalBytes > 3 * 1048576 && !assetsWinDismissed && !assetsWin) openAssetsWindow();
+    },
+    onRoleDone: (id, changed) => {
+      if (!changed) return;
+      log(`[素材] ${speciesName(id)} 新下好 ${changed} 个动画`);
+      store.load();
+      if (id === switcher.current) reloadAll('新下载的动画生效');
+      else assetsReloadPending = true;
+    },
+  });
+  ipcMain.on('assets:hide', () => { assetsWinDismissed = true; if (assetsWin && !assetsWin.isDestroyed()) assetsWin.close(); });
+  ipcMain.on('assets:retry', () => runAssetSync(true));
+  setTimeout(() => runAssetSync(false), 2000);
 }
 
 function setMode(next, species) {
@@ -600,6 +697,7 @@ function buildTrayMenu() {
     label: updater && updater.getState() === 'downloading' ? '检查更新（新版本下载中…）' : updater && updater.getState() === 'ready' ? '检查更新（新版本已下好）' : '检查更新',
     click: () => updater && updater.check(true),
   });
+  if (assetSync) items.push({ label: assetsStatusLabel(), click: () => runAssetSync(true) });
   items.push({ type: 'separator' });
   items.push({ label: '调试：查看前台窗口…', click: openDebugWindow });
   items.push({
@@ -903,6 +1001,7 @@ app.whenReady().then(() => {
   updater = createUpdater({ log, onState: () => refreshTray() });
   setTimeout(() => updater.check(false), 15000); // 启动 15 秒后静默检查一次
   setInterval(() => updater.check(false), 6 * 3600 * 1000); // 常驻时每 6 小时再查一次
+  initAssetSync();
 
   let displaysTimer = null;
   const scheduleDisplays = () => {

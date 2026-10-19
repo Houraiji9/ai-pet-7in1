@@ -1,6 +1,6 @@
 {
   "name": "ai-pet-7in1",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "七合一 AI 桌宠：根据当前前台的 Agent 程序自动切换 GPT / Gemini / GLM / Claude / Kimi / DeepSeek / Grok 形象（基于 PC2005-cloud/dsh-pet 独立模式改造）",
   "main": "main/main.js",
@@ -13,7 +13,9 @@
     "sync-assets": "node tools/sync-assets.js",
     "build:win": "node tools/sync-assets.js && electron-builder --win nsis --x64 --publish never",
     "build:win-dir": "node tools/sync-assets.js && electron-builder --win dir --x64",
-    "build:win-portable": "node tools/sync-assets.js && electron-builder --win portable --x64 --publish never"
+    "build:win-portable": "node tools/sync-assets.js && electron-builder --win portable --x64 --publish never",
+    "publish-assets": "node tools/publish-assets.js",
+    "publish-assets:upload": "node tools/publish-assets.js --upload"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",

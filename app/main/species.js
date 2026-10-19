@@ -135,6 +135,8 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
   function assetDirs(id) {
     const dirs = [];
     if (userDir) dirs.push({ dir: path.join(userDir, 'species', id), kind: 'user' });
+    // 按需下载的素材（main/asset-sync.js）：%APPDATA%\ai-pet-7in1\assets\<角色>\
+    if (userDir) dirs.push({ dir: path.join(userDir, 'assets', id), kind: 'downloaded' });
     if (projectAssetsDir) dirs.push({ dir: path.join(projectAssetsDir, id, 'webm'), kind: 'project' });
     dirs.push({ dir: path.join(appRoot, 'assets', id, 'webm'), kind: 'bundled' });
     dirs.push({ dir: path.join(appRoot, 'assets', 'placeholder', id), kind: 'placeholder' });

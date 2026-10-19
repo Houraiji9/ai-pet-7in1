@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self'">
+<title>AI 桌宠：下载动画资源</title>
+<style>
+  html, body { margin: 0; height: 100%; font: 13px "Microsoft YaHei", "PingFang SC", sans-serif; background: transparent; user-select: none; }
+  .card { box-sizing: border-box; height: 100%; padding: 12px 14px; border-radius: 10px; background: rgba(30, 32, 44, 0.94); color: #eef; -webkit-app-region: drag; }
+  .row { display: flex; align-items: center; justify-content: space-between; }
+  .title { font-size: 14px; font-weight: bold; }
+  .sub { margin-top: 4px; color: #aab; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar { margin-top: 8px; height: 8px; border-radius: 4px; background: #3a3d52; overflow: hidden; }
+  .fill { height: 100%; width: 0; background: linear-gradient(90deg, #7aa7ff, #c38bff); transition: width .2s; }
+  button { -webkit-app-region: no-drag; border: 0; border-radius: 6px; padding: 2px 8px; background: #4a4e68; color: #eef; cursor: pointer; font: inherit; }
+  button:hover { background: #5b6080; }
+  #retry { display: none; margin-right: 6px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="row"><span class="title" id="title">正在准备下载动画资源…</span><span><button id="retry">重试</button><button id="hide">隐藏</button></span></div>
+  <div class="bar"><div class="fill" id="fill"></div></div>
+  <div class="sub" id="sub">关掉这个窗口也会在后台继续下载</div>
+</div>
+<script src="assets-progress.js"></script>
+</body>
+</html>
