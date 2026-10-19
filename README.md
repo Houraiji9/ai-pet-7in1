@@ -1,46 +1,59 @@
 # AI 七合一桌宠（ai-pet-7in1）
 
 主人在用哪个 AI 程序，桌面上就站着哪个角色：
-切到 Codex（ChatGPT.exe）就换成 GPT 龙娘，切到 DeepSeek Harness 就换成 DeepSeek 娘……
-换角色时会先播一段「登场」动画，然后回到待机。
-切到微信、资源管理器这类和 AI 无关的程序时，角色保持不变。
+切到 Codex 就换成 GPT 龙娘，切到 Gemini / Antigravity 就换成 Gemini 娘……
+换角色时会先播一段「登场」动画，然后回到待机。切到微信、资源管理器这类和 AI 无关的程序时，角色保持不变。
 
-现在有素材的角色：**DeepSeek 娘**（原项目自带）、**GPT 龙娘**（5 个动作）。
-Gemini / GLM / Claude / Kimi / Grok 已经写进配置，但还没有动画素材。切到它们对应的程序时，桌宠会先保持当前角色；以后把素材放进去就能用（见第 4 节）。
+七个角色都有动画了：
+
+| 角色 | 对应的程序 |
+|---|---|
+| GPT 龙娘 | Codex / ChatGPT |
+| Gemini 娘 | Gemini / Antigravity |
+| GLM 狐娘 | 智谱 / ZCode |
+| Claude 娘 | Claude |
+| Kimi 娘 | Kimi |
+| DeepSeek 娘（原项目自带） | DeepSeek / WorkBuddy |
+| Grok 娘 | Grok / Cursor |
+
+每个角色有登场、待机、走路、点击、拖拽、6 个专属动作，以及几十个日常小动作（哼歌、伸懒腰、打哈欠、小睡……）。
 
 ---
 
-## 1. 在 Windows 上运行
+## 1. 下载安装（推荐）
 
-### 方法 A：直接用打包好的 exe（最简单）
+1. 打开 [Releases 下载页](https://github.com/Houraiji9/ai-pet-7in1/releases/latest)，下载 `AI-Pet-7in1-Setup-版本号.exe`。
+   - 安装包大约 400 MB（动画素材占了绝大部分），第一次下载会久一点。
+2. 双击安装包，会自动装好，并在桌面和开始菜单放一个「七合一AI桌宠」快捷方式，装完自动启动。
+   - 装在当前用户目录下，不需要管理员权限。卸载：Windows 设置 → 应用 → 找到 AI-Pet-7in1 → 卸载。
+3. **以后不用再手动下载**：桌宠启动后会自己去 GitHub 检查新版本，在后台下载，下好后弹窗问「新版本已下好，重启安装？」。
+   点「稍后」的话，下次退出桌宠时会自动装上。托盘菜单里也有「检查更新」可以手动查。
+   更新只下载变化的部分（差分更新），通常比整包小很多。
+4. 以前用**便携版**（`...-portable.exe`）的：装一次这个安装版就行，之后都会自动更新，旧的便携版 exe 可以删掉。设置（大小、开机自启）会保留。
 
-1. 找到 `AI-Pet-7in1-0.1.0-portable.exe`（在 `app\dist\` 文件夹里）。
-2. 双击运行，不需要安装。第一次启动会稍慢几秒（它要先把自己解压到临时目录）。
-3. 右下角托盘区会出现一个七彩小圆点图标，那就是桌宠的菜单。
-4. 如果 Windows 弹出「已保护你的电脑」，点「更多信息」→「仍要运行」。这个 exe 没有数字签名，所以会有这个提示。
+### Windows 弹出蓝色「已保护你的电脑」怎么办
 
-### 方法 B：从源码运行
+安装包没有数字签名（个人项目买不起证书），所以第一次运行 Windows SmartScreen 会拦一下：
+点「**更多信息**」→「**仍要运行**」就行。
+担心文件被篡改的话，可以核对 SHA-256：每个版本的值都写在 Releases 页的说明里。
+在 PowerShell 里运行 `Get-FileHash .\AI-Pet-7in1-Setup-0.5.0.exe` 就能算出来对照。
 
-1. 安装 Node.js：到 <https://nodejs.org> 下载 **LTS 版**，一路「下一步」装完。
-2. 打开 `ai-pet-7in1\app` 文件夹，在地址栏输入 `cmd` 回车，打开一个黑色命令窗口。
-3. 输入下面这行，回车，等它装完（第一次要下载约 100MB）：
-   ```
-   npm install
-   ```
-4. 启动：
-   ```
-   npm start
-   ```
-5. 想自己打包 exe：
-   ```
-   npm run build:win
-   ```
-   打包好的 exe 会出现在 `app\dist\`。
+### 从源码运行 / 自己打包（给会用命令行的人）
+
+1. 安装 [Node.js LTS](https://nodejs.org) 和 [Git LFS](https://git-lfs.com)（动画素材用 Git LFS 存）。
+2. `git clone https://github.com/Houraiji9/ai-pet-7in1.git`，然后在仓库里运行 `git lfs pull`。
+3. 进入 `app` 文件夹：`npm install`，`npm start` 运行。
+4. 打安装包：`npm run build:win`，产物在 `app\dist\`（`AI-Pet-7in1-Setup-<版本>.exe`、`.blockmap`、`latest.yml`）。
+   发布新版时这三个文件都要上传到 GitHub Release，自动更新才能用。
+   还想要便携版可以用 `npm run build:win-portable`（便携版不会自动更新）。
 
 ### 怎么操作
 
 - **拖动**：按住角色拖到任意位置。松手后它会掉到屏幕底边（有重力）。
 - **点击**：角色会有反应。
+- **调大小**：右键角色或托盘图标 →「桌宠大小」；或者鼠标放在角色身上，按住 Ctrl 滚滚轮。
+- **开机自动启动**：托盘图标右键菜单里的「开机自动启动」，默认关闭。
+- **检查更新**：托盘图标右键菜单里的「检查更新」。
 - **右键角色**：查看余额 / 碎碎念 / 回到初始位置 / 切换角色（自动或锁定）/ 重载配置。
 - **托盘图标（左键或右键都行）**：
   - 自动切换：跟着前台程序换角色（默认）。
@@ -195,15 +208,17 @@ Gemini / GLM / Claude / Kimi / Grok 已经写进配置，但还没有动画素�
 
 ## 5. 版权说明（请务必看）
 
-- **程序代码**：基于 PC2005-cloud/dsh-pet，MIT 许可证（见 `app\LICENSE-dsh-pet.txt`）。
-- **余额查询代码**：Codex / Cursor / ZCode 的读取与解析移植自 [Javis603/token-monitor](https://github.com/Javis603/token-monitor)，MIT 许可证（见 `app\LICENSE-token-monitor.txt`）。
-- **角色形象**：来自 ZipZipPipe / Apprentice-Geo 的 AI-Fanworks，许可证是 **CC BY-NC-SA 4.0**。
-  这包括 GPT 龙娘和以后其他角色的形象设计。
-  - **不能商用**（不能卖、不能拿来收费）；
-  - 转发、二次创作要注明原作者，并且用同样的许可证发布。
-- 原项目自带的 DeepSeek 娘动画，作者也声明了**禁止商用**。
+这个项目里**代码和素材是两套许可**：
 
-所以这个桌宠只能自己用、或者免费分享，并且要带上上面的署名。
+- **程序代码**：MIT 许可证，见根目录 [`LICENSE`](LICENSE)。代码基于 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)（MIT），余额查询部分移植自 [Javis603/token-monitor](https://github.com/Javis603/token-monitor)（MIT）。
+- **角色形象和动画**：**CC BY-NC-SA 4.0**，**禁止商用**，见 [`LICENSE-ASSETS.md`](LICENSE-ASSETS.md)。
+  形象来自 [ZipZipPipe](https://space.bilibili.com/4168597) 的《大 AI 与小 AI 们》和 [ApprenTice](https://space.bilibili.com/634972797) 的 [AI-Fanworks](https://github.com/Apprentice-Geo/AI-Fanworks)。
+  转发或二次创作要保留署名，并用同样的许可证发布。
+- **DeepSeek 娘动画**：来自原项目 dsh-pet，作者声明禁止商用；衍生作品需注明 <https://github.com/PC2005-cloud/dsh-pet>。
+- **气泡字体**：站酷快乐体，SIL Open Font License 1.1。原项目里的「上首软糖体」只允许个人非商用、嵌入软件需另外授权，所以已经换掉。
+- 完整的第三方清单见 [`NOTICE.md`](NOTICE.md)。
+
+所以这个桌宠只能自己用或者免费分享，不能卖、不能拿来收费。
 
 ---
 
@@ -212,7 +227,7 @@ Gemini / GLM / Claude / Kimi / Grok 已经写进配置，但还没有动画素�
 ```
 ai-pet-7in1\
 ├─ README.md            ← 就是这份说明
-├─ assets\gpt\webm\     ← GPT 龙娘的 5 个动作（打包时会复制进 exe）
+├─ assets\gpt\webm\     ← 各角色的动画（打包时会复制进安装包）
 ├─ old-codex-pet\       ← 主人之前的 C# 桌宠（只参考了它的识别规则，没有改它）
 └─ app\                 ← 新桌宠
    ├─ config\agents.jsonc    程序→角色 映射（默认版）
