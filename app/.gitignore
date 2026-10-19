@@ -7,3 +7,8 @@ assets/glm/
 assets/claude/
 assets/kimi/
 assets/grok/
+
+# 由 tools/sync-assets.js 从仓库根目录复制
+/LICENSE
+/LICENSE-ASSETS.md
+/NOTICE.md

@@ -100,10 +100,10 @@ async function boot() {
 function injectAssets() {
   const style = document.createElement('style');
   style.textContent =
-    '@font-face{font-family:"ShangshouSoftCandy";src:url("' +
+    '@font-face{font-family:"ZCOOLKuaiLe";src:url("' +
     BASE +
     '/font/' +
-    encodeURIComponent('上首软糖体') +
+    'ZCOOLKuaiLe-Regular' +
     '.ttf") format("truetype");font-display:swap;font-weight:400}' +
     '.pet-hit{cursor:url("' +
     BASE +

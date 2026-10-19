@@ -100,6 +100,6 @@ test('接口：config / state / thumb / whisper / chat 关闭 / 路径穿越', (
   assert.ok(fs.existsSync(t.file));
   assert.equal(api.handle('GET', '/dsh-pet-7340/thumb/deepseek/%2E%2E%2F%2E%2E%2Fpackage.webm').status, 404);
   assert.equal(api.handle('GET', '/dsh-pet-7340/font/..%2F..%2Fpackage.json').status, 404);
-  assert.equal(api.handle('GET', '/dsh-pet-7340/font/' + encodeURIComponent('上首软糖体') + '.ttf').status, 200);
+  assert.equal(api.handle('GET', '/dsh-pet-7340/font/' + 'ZCOOLKuaiLe-Regular.ttf').status, 200);
   assert.equal(api.handle('GET', '/dsh-pet-7340/pic/cursor-grab.png').status, 200);
 });
