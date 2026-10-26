@@ -23,6 +23,7 @@ const { TOPMOST_WATCHDOG_TICK_MS, shouldReassertTopmost } = require('./topmost-w
 const { shouldLinearize, resolveForcedScale, resolvePetScale } = require('./dpi-linearization.js');
 const { buildDeskGeometry } = require('./desktop-geometry.js');
 const { parseJsonc } = require('./jsonc.js');
+const { migrateUserConfigs } = require('./config-migrate.js');
 const { CHARACTERS, basename, validateAgentsConfig, resolveAgentsConfig, agentsNotice, classify } = require('./matcher.js');
 const { Switcher } = require('./switcher.js');
 const { createSpeciesStore } = require('./species.js');
@@ -148,11 +149,14 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 // 只允许一个桌宠（再次双击 exe 会退出新实例）
-if (!DPI_PROBE && !app.requestSingleInstanceLock()) {
+const IS_SECOND_INSTANCE = !DPI_PROBE && !app.requestSingleInstanceLock();
+if (IS_SECOND_INSTANCE) {
   app.quit();
 }
 
 // ---------- 配置 ----------
+// 先同步配置（升级未改动的旧版配置），再建角色库 / 读映射表 / 开窗口，内存里的配置和磁盘一致
+if (!DPI_PROBE && !IS_SECOND_INSTANCE) ensureUserConfigCopies();
 const store = createSpeciesStore({ appRoot: APP_ROOT, userDir: USER_DIR, projectAssetsDir: PROJECT_ASSETS });
 /** 界面设置：桌宠大小倍数 + 开机自启（ui-settings.json） */
 const uiSettings = createUiSettings(path.join(USER_DIR, 'ui-settings.json'));
@@ -209,28 +213,21 @@ function loadAgents() {
   if (agentsErrors.length) log('映射表有问题：' + agentsErrors.join('；'));
 }
 
-/** 把程序自带的配置复制到用户目录（不覆盖已有文件），方便用户用记事本改 */
+/** 把程序自带的配置同步到用户目录（见 config-migrate.js），返回是否有文件被换掉 */
 function ensureUserConfigCopies() {
-  fs.mkdirSync(path.join(USER_DIR, 'species'), { recursive: true });
-  for (const name of ['agents.jsonc', 'species.jsonc']) {
-    const dst = path.join(USER_DIR, name);
-    const src = path.join(APP_ROOT, 'config', name);
-    if (!fs.existsSync(dst)) fs.copyFileSync(src, dst);
-    else {
-      // 用户没改过（和以前某个版本自带的一模一样）→ 升级时换成新版自带的，否则修复（比如移动参数）永远不生效
-      try {
-        const h = require('crypto').createHash('sha256').update(fs.readFileSync(dst)).digest('hex');
-        const known = (require('./shipped-config-hashes.json')[name] || []);
-        if (known.includes(h) && !fs.readFileSync(dst).equals(fs.readFileSync(src))) {
-          fs.copyFileSync(src, dst);
-          log('配置 ' + name + ' 未被修改过，已升级为新版自带的');
-        }
-      } catch (e) {
-        log('检查配置 ' + name + ' 是否需要升级失败：' + (e && e.message ? e.message : e));
-      }
-    }
+  let changed = false;
+  try {
+    const r = migrateUserConfigs({ appRoot: APP_ROOT, userDir: USER_DIR, hashes: require('./shipped-config-hashes.json'), log });
+    changed = Object.values(r).some((v) => v === 'created' || v === 'upgraded');
+  } catch (e) {
+    log('同步配置失败：' + (e && e.message ? e.message : e));
   }
-  for (const id of CHARACTERS) fs.mkdirSync(path.join(USER_DIR, 'species', id), { recursive: true });
+  try {
+    for (const id of CHARACTERS) fs.mkdirSync(path.join(USER_DIR, 'species', id), { recursive: true });
+  } catch (e) {
+    log('创建素材目录失败：' + (e && e.message ? e.message : e));
+  }
+  return changed;
 }
 
 // ---------- 状态 ----------
@@ -777,11 +774,8 @@ function createTray() {
 }
 
 function openConfigFolder() {
-  try {
-    ensureUserConfigCopies();
-  } catch (e) {
-    log('复制配置失败：' + e);
-  }
+  // 用户可能删了配置文件，补回来；若真换了文件，重载让内存跟上
+  if (ensureUserConfigCopies()) reloadAll('补回配置文件');
   shell.openPath(USER_DIR);
 }
 
