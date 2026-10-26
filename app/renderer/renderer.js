@@ -61,6 +61,34 @@ async function loadConfig() {
   };
 }
 
+// ---------- 重载后回到原位置（主进程把旧窗口里的位置带过来；按当前工作区夹回可见区） ----------
+function restorePosition(sprite) {
+  if (restoredOnce) return;
+  restoredOnce = true;
+  let p = null;
+  try {
+    p = JSON.parse(new URLSearchParams(location.search).get('restorePos') || 'null');
+  } catch {
+    p = null;
+  }
+  if (!p || !Number.isFinite(p.rx) || !Number.isFinite(p.ry)) return;
+  const c = S.clampPointToRegion(AREAS, p.rx * VIEW.w, p.ry * VIEW.h);
+  sprite.customPos = { rx: c.x / VIEW.w, ry: c.y / VIEW.h };
+  sprite.position();
+  window.__dshPetDebug.restoredPos = sprite.customPos;
+}
+let restoredOnce = false;
+/** 主进程重载前来问：位置 + 是否正在拖 / 飞 */
+window.__aipetSnapshot = () => {
+  const s = sprites[0];
+  if (!s) return null;
+  return {
+    pos: { rx: s.currentCenterX() / VIEW.w, ry: s.currentCenterY() / VIEW.h },
+    dragging: !!(s.dragState && s.dragState.active),
+    flying: s.throwRef !== null && s.throwRef !== undefined,
+  };
+};
+
 // ---------- 启动（配置校验通过才建 sprite；失败大声报错 + 5s 自动重试） ----------
 async function boot() {
   try {
@@ -86,6 +114,7 @@ async function boot() {
     }
     for (const s of sprites) s.dispose();
     sprites = [new PetSprite(scaledPet(pet))];
+    restorePosition(sprites[0]);
     window.__dshPetDebug.configOk = true;
     window.__dshPetDebug.spriteCount = sprites.length;
     for (const s of sprites) s.playIdle();

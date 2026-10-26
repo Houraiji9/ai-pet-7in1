@@ -57,7 +57,8 @@ const script = [
   { do: 'sleep', ms: 500 },
   { mark: 'auto', do: 'menu-auto' }, // 回到自动 → 300ms 后跟随前台回 deepseek
   { mark: 'auto-back', do: 'wait', until: { main: 'deepseek', species: 'deepseek' } },
-  { mark: 'reload', do: 'reload' },
+  { do: 'place', rx: 0.3, ry: 0.5 },
+  { mark: 'reload', do: 'reload', times: 3 },
   { do: 'wait', until: { configOk: true, species: 'deepseek' } },
   { mark: 'after-reload', do: 'sleep', ms: 800 },
   { mark: 'codex', do: 'fg', fg: { pid: 200, path: CODEX, packageFamily: 'OpenAI.Codex_2p2nqsd0c76g0' } },
@@ -117,6 +118,9 @@ async function main() {
   check('碎碎念：气泡显示 GPT 的台词', gptLines.length > 0 && ph('locked').some((r) => gptLines.includes(r.bubble)));
   check('切回自动 → 跟随前台回 deepseek', ev('menu-auto').after.mode === 'auto' && (res.events.find((e) => e.mark === 'auto-back') || {}).ok === true);
   const afterReload = ph('after-reload');
+  const rl = ev('reload');
+  check('连续 3 次重载请求只重建 1 次窗口（合并）', rl.windowsCreated === 1);
+  check('重载后宠物留在原位置（不跳回角落）', !!rl.restorePos && Math.abs(rl.restorePos.rx - 0.3) < 0.02 && Math.abs(rl.restorePos.ry - 0.5) < 0.05);
   check('重新加载配置后窗口重建、角色不变、无报错', afterReload.length > 0 && afterReload.every((r) => r.configOk && r.species === 'deepseek' && !r.errorText));
   check('重新加载后自动切换仍然有效（Codex → gpt）', ph('codex').some((r) => r.main === 'gpt' && r.species === 'gpt'));
   const dbg = ev('debug-window').debugText || '';

@@ -35,6 +35,7 @@ const { createForegroundProvider } = require('./foreground.js');
 const { createSecretStore } = require('./balance/secrets.js');
 const { createBalanceService } = require('./balance/index.js');
 const { createBalanceRequests } = require('./balance/requests.js');
+const { createReloadCoalescer, sanitizeRestorePos } = require('./reload-coalescer.js');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.setName('ai-pet-7in1');
@@ -471,7 +472,7 @@ function petWindowSize(size) {
   return { width: Math.round(size) + m * 2, height: Math.round(height + bottomPad) + m * 2 };
 }
 
-function createPetWindow() {
+function createPetWindow({ restorePos = null } = {}) {
   const geo = deskGeometry();
   const area = geo.hull;
   const scale = petScale();
@@ -568,6 +569,7 @@ function createPetWindow() {
         topInsetRatio: String(geo.topInsetRatio),
         panels: JSON.stringify(geo.panels),
         primaryIndex: String(geo.primaryIndex),
+        ...(restorePos ? { restorePos: JSON.stringify(restorePos) } : {}),
       },
     })
     .catch((e) => log('宠物窗口加载失败：' + e));
@@ -867,18 +869,32 @@ function openBalanceSettings() {
 }
 
 // ---------- 重新加载 ----------
+/** 重载请求统一走合并器：合并短时间内的多次请求；拖拽/飞行中先等；保留位置、大小（倍数在 ui-settings）和锁定模式 */
+const reloader = createReloadCoalescer({
+  snapshot: async () => {
+    if (!petWin || petWin.isDestroyed()) return null;
+    return petWin.webContents.executeJavaScript('window.__aipetSnapshot ? window.__aipetSnapshot() : null', true).catch(() => null);
+  },
+  run: async (reasons, snap) => doReloadAll(reasons.join('、'), snap),
+});
 function reloadAll(why) {
+  reloader.request(why);
+}
+
+function doReloadAll(why, snap) {
   log('重新加载配置（' + why + '）');
+  const keepMode = mode;
+  const keepSpecies = switcher.current;
   store.load();
   loadAgents();
   switcher.debounceMs = agents.debounceMs;
   if (!store.isAvailable(switcher.current)) switcher.select(firstAvailable());
-  if (mode === 'lock' && !store.isAvailable(switcher.current)) setMode('auto');
+  if (keepMode === 'lock' && !store.isAvailable(keepSpecies)) setMode('auto');
   startWatcher();
   startWhisperTimer();
   petApi.bumpConfigVersion();
   const old = petWin;
-  createPetWindow();
+  createPetWindow({ restorePos: sanitizeRestorePos(snap && snap.pos) });
   if (old && !old.isDestroyed()) old.destroy();
   refreshTray();
 }
@@ -1001,8 +1017,31 @@ function startSmoke() {
           rec.row = r;
         } else if (step.do === 'whisper') {
           petApi.whisper(switcher.current);
+        } else if (step.do === 'place') {
+          // 把宠物放到指定位置（中心点占可视区比例），用来验证重载后位置不变
+          await petWin.webContents.executeJavaScript(`(() => { const s = sprites[0]; s.stopMove(); s.customPos = { rx: ${Number(step.rx)}, ry: ${Number(step.ry)} }; s.position(); return true; })()`);
         } else if (step.do === 'reload') {
-          reloadAll('冒烟测试');
+          // 连续请求几次：合并器只应重建一次窗口
+          const before = petWin;
+          let created = 0;
+          const n = step.times || 1;
+          for (let i = 0; i < n; i++) reloadAll('冒烟测试');
+          const t0 = Date.now();
+          let last = before;
+          while (Date.now() - t0 < 5000) {
+            await sleep(50);
+            if (petWin !== last) {
+              created++;
+              last = petWin;
+            }
+            if (created && Date.now() - t0 > 1500) break;
+          }
+          rec.windowsCreated = created;
+          rec.restorePos = await waitValue(
+            () => (petWin && !petWin.isDestroyed() ? petWin.webContents.executeJavaScript('window.__dshPetDebug.restoredPos || null').catch(() => null) : null),
+            (v) => !!v,
+            4000,
+          );
         } else if (step.do === 'balance') {
           // 走真实的右键菜单处理函数 → POST /balance → 主进程查询 → /state → 气泡
           await petWin.webContents.executeJavaScript(`sprites[0].onMenuAction({ action: 'show-balance' }); true`);
