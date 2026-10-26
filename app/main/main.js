@@ -203,7 +203,21 @@ function ensureUserConfigCopies() {
   fs.mkdirSync(path.join(USER_DIR, 'species'), { recursive: true });
   for (const name of ['agents.jsonc', 'species.jsonc']) {
     const dst = path.join(USER_DIR, name);
-    if (!fs.existsSync(dst)) fs.copyFileSync(path.join(APP_ROOT, 'config', name), dst);
+    const src = path.join(APP_ROOT, 'config', name);
+    if (!fs.existsSync(dst)) fs.copyFileSync(src, dst);
+    else {
+      // 用户没改过（和以前某个版本自带的一模一样）→ 升级时换成新版自带的，否则修复（比如移动参数）永远不生效
+      try {
+        const h = require('crypto').createHash('sha256').update(fs.readFileSync(dst)).digest('hex');
+        const known = (require('./shipped-config-hashes.json')[name] || []);
+        if (known.includes(h) && !fs.readFileSync(dst).equals(fs.readFileSync(src))) {
+          fs.copyFileSync(src, dst);
+          log('配置 ' + name + ' 未被修改过，已升级为新版自带的');
+        }
+      } catch (e) {
+        log('检查配置 ' + name + ' 是否需要升级失败：' + (e && e.message ? e.message : e));
+      }
+    }
   }
   for (const id of CHARACTERS) fs.mkdirSync(path.join(USER_DIR, 'species', id), { recursive: true });
 }
