@@ -68,7 +68,9 @@ test('用户的 species.jsonc 优先；写坏了退回自带的并报错', () =>
   assert.equal(store.isAvailable('gpt'), false, '用户文件里没写 gpt → 不可用');
   fs.writeFileSync(path.join(user, 'species.jsonc'), '{ 坏了');
   store = createSpeciesStore({ appRoot: APP, userDir: user });
-  assert.equal(store.get().errors.length, 1);
+  assert.ok(store.get().errors.length >= 1);
+  assert.equal(store.get().broken, true);
+  assert.equal(store.get().source, 'bundled');
   assert.equal(store.get().species.deepseek.name, 'DeepSeek 娘');
 });
 

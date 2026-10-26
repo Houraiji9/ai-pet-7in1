@@ -23,7 +23,7 @@ const { TOPMOST_WATCHDOG_TICK_MS, shouldReassertTopmost } = require('./topmost-w
 const { shouldLinearize, resolveForcedScale, resolvePetScale } = require('./dpi-linearization.js');
 const { buildDeskGeometry } = require('./desktop-geometry.js');
 const { parseJsonc } = require('./jsonc.js');
-const { CHARACTERS, basename, validateAgentsConfig, classify } = require('./matcher.js');
+const { CHARACTERS, basename, validateAgentsConfig, resolveAgentsConfig, agentsNotice, classify } = require('./matcher.js');
 const { Switcher } = require('./switcher.js');
 const { createSpeciesStore } = require('./species.js');
 const { createUiSettings, clampScale, autoStartExePath, SIZE_PRESETS } = require('./ui-settings.js');
@@ -188,26 +188,23 @@ function setAutoStart(on) {
 }
 let agents = validateAgentsConfig({ rules: [] }).config;
 let agentsErrors = [];
+let agentsFallback = 'none';
 let agentsFile = '';
 
 function loadAgents() {
   const userFile = path.join(USER_DIR, 'agents.jsonc');
   const bundled = path.join(APP_ROOT, 'config', 'agents.jsonc');
   agentsFile = fs.existsSync(userFile) ? userFile : bundled;
-  let parsed;
+  let parsed = null;
+  let readError = '';
   try {
     parsed = parseJsonc(fs.readFileSync(agentsFile, 'utf8'));
   } catch (e) {
-    agentsErrors = [`读取 ${agentsFile} 失败：${e && e.message ? e.message : e}`];
-    parsed = null;
+    readError = `读取 ${agentsFile} 失败：${e && e.message ? e.message : e}`;
   }
-  let r = parsed ? validateAgentsConfig(parsed) : null;
-  if (r) agentsErrors = r.errors;
-  if (!r || r.errors.length) {
-    // 用户改坏了：退回程序自带的规则，错误在托盘/调试窗口里显示
-    const fallback = validateAgentsConfig(parseJsonc(fs.readFileSync(bundled, 'utf8')));
-    if (!r || r.config.rules.length === 0) r = fallback;
-  }
+  const r = resolveAgentsConfig(parsed, parseJsonc(fs.readFileSync(bundled, 'utf8')), readError);
+  agentsErrors = r.errors;
+  agentsFallback = r.fallback;
   agents = r.config;
   if (agentsErrors.length) log('映射表有问题：' + agentsErrors.join('；'));
 }
@@ -692,7 +689,10 @@ function clsText(c) {
 function buildTrayMenu() {
   const items = [];
   items.push({ label: `当前：${speciesName(switcher.current)}（${mode === 'auto' ? '自动' : '锁定'}）`, enabled: false });
-  if (agentsErrors.length) items.push({ label: '⚠ 映射表有错误，已用默认规则（看调试窗口）', enabled: false });
+  if (agentsErrors.length) items.push({ label: agentsNotice(agentsFallback) || '⚠ 映射表有问题（看调试窗口）', enabled: false });
+  const sp = store.get();
+  if (sp.broken) items.push({ label: sp.source === 'last-good' ? '⚠ 角色配置有错误，暂用上一次能用的（看调试窗口）' : '⚠ 角色配置有错误，暂用程序自带的（看调试窗口）', enabled: false });
+  else if (sp.allDisabled) items.push({ label: '所有角色都在配置里被禁用了（species.jsonc 的 enabled）', enabled: false });
   items.push({ type: 'separator' });
   items.push({ label: '自动切换（跟随前台程序）', type: 'radio', checked: mode === 'auto', click: () => setMode('auto') });
   items.push({
@@ -808,6 +808,9 @@ function debugPayload() {
     agentsErrors,
     speciesFile: store.configFile(),
     speciesErrors: store.get().errors,
+    speciesSource: store.get().source,
+    speciesAllDisabled: store.get().allDisabled,
+    agentsFallback,
     userDir: USER_DIR,
     logFile: LOG_FILE,
     sampleIntervalMs: agents.sampleIntervalMs,

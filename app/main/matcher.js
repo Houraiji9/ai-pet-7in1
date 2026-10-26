@@ -146,4 +146,25 @@ function classify(config, fg, self) {
   return { character: null, ruleId: null, via: 'unmatched' };
 }
 
-module.exports = { CHARACTERS, basename, normalizeCharacter, validateAgentsConfig, matchRule, matchBrowserTitle, classify };
+/**
+ * 用户规则 + 自带规则 → 实际生效的规则。
+ * 用户文件读不出来 / 一条可用规则都没有 → 用自带规则（fallback='bundled'）；
+ * 有部分规则出错 → 保留其余的用户规则，只忽略出错的那几条（fallback='partial'）。
+ */
+function resolveAgentsConfig(parsed, bundledParsed, readError) {
+  const r = parsed && !readError ? validateAgentsConfig(parsed) : null;
+  const errors = readError ? [readError] : r ? r.errors : ['映射表不是有效的对象'];
+  if (!r || r.config.rules.length === 0) {
+    return { config: validateAgentsConfig(bundledParsed).config, errors, fallback: errors.length || !r ? 'bundled' : 'none' };
+  }
+  return { config: r.config, errors, fallback: errors.length ? 'partial' : 'none' };
+}
+
+/** 托盘里的提示文字（和实际行为一致） */
+function agentsNotice(fallback) {
+  if (fallback === 'bundled') return '⚠ 映射表有错误，已改用程序自带的规则（看调试窗口）';
+  if (fallback === 'partial') return '⚠ 映射表有几条规则写错了，已跳过它们，其余照用（看调试窗口）';
+  return '';
+}
+
+module.exports = { resolveAgentsConfig, agentsNotice, CHARACTERS, basename, normalizeCharacter, validateAgentsConfig, matchRule, matchBrowserTitle, classify };

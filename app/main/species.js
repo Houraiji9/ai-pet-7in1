@@ -49,8 +49,10 @@ function referencedAnims(animations) {
   for (const k of ['idle', 'turn', 'drag', 'clicks']) for (const n of a[k] || []) names.add(n);
   for (const m of (a.moves && a.moves.actions) || []) names.add(m.name);
   for (const c of a.categories || []) for (const n of c.actions || []) names.add(n);
-  for (const pool of Object.values(a.events || {})) {
-    for (const slot of pool || []) for (const n of Array.isArray(slot) ? slot : [slot]) names.add(n);
+  const ev = a.events && typeof a.events === 'object' && !Array.isArray(a.events) ? a.events : {};
+  for (const pool of Object.values(ev)) {
+    if (!Array.isArray(pool)) continue;
+    for (const slot of pool) for (const n of Array.isArray(slot) ? slot : [slot]) names.add(n);
   }
   return [...names].filter((n) => typeof n === 'string' && n);
 }
@@ -70,8 +72,70 @@ function normalizeAnimations(a) {
       actions: (Array.isArray(moves.actions) ? moves.actions : []).filter((m) => m && typeof m.name === 'string'),
     },
     categories: (Array.isArray(src.categories) ? src.categories : []).filter((c) => c && Array.isArray(c.actions)),
-    events: src.events && typeof src.events === 'object' ? src.events : {},
+    events: normalizeEvents(src.events),
   };
+}
+
+/** events：{ 名字: [动画名 | [动画名...]] }，形状不对的池整个丢掉（例如 whisper: {}） */
+function normalizeEvents(e) {
+  const out = {};
+  if (!e || typeof e !== 'object' || Array.isArray(e)) return out;
+  for (const [k, pool] of Object.entries(e)) {
+    if (!Array.isArray(pool)) continue;
+    const kept = pool
+      .map((slot) => (Array.isArray(slot) ? slot.filter((x) => typeof x === 'string' && x) : typeof slot === 'string' && slot ? slot : null))
+      .filter((slot) => slot && (!Array.isArray(slot) || slot.length));
+    out[k] = kept;
+  }
+  return out;
+}
+
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * 结构校验，错误带字段路径。fatal = 整份配置不可用（要退回上次可用 / 自带配置）；
+ * warnings = 局部问题（那个字段按默认处理，其余照用）。
+ */
+function validateSpeciesRaw(raw) {
+  const fatal = [];
+  const warnings = [];
+  if (!isObj(raw)) {
+    fatal.push(`(根): 应该是对象，实际是 ${raw === null ? 'null' : Array.isArray(raw) ? '数组' : typeof raw}`);
+    return { fatal, warnings };
+  }
+  if (!('species' in raw)) fatal.push('species: 缺少（角色列表）');
+  else if (!isObj(raw.species)) fatal.push('species: 应该是对象 { 角色id: {...} }');
+  else {
+    const known = Object.keys(raw.species).filter((k) => CHARACTERS.includes(k));
+    if (!known.length) fatal.push(`species: 一个已知角色都没有（只认 ${CHARACTERS.join('/')}）`);
+    for (const id of known) {
+      const s = raw.species[id];
+      const at = `species.${id}`;
+      if (!isObj(s)) { fatal.push(`${at}: 应该是对象`); continue; }
+      if ('enabled' in s && typeof s.enabled !== 'boolean') warnings.push(`${at}.enabled: 应该是 true/false`);
+      if ('whisperLines' in s && !Array.isArray(s.whisperLines)) warnings.push(`${at}.whisperLines: 应该是数组`);
+      if ('memes' in s && !isObj(s.memes)) warnings.push(`${at}.memes: 应该是对象`);
+      if ('animationWeights' in s && !isObj(s.animationWeights)) warnings.push(`${at}.animationWeights: 应该是对象`);
+      const a = s.animations;
+      if (!isObj(a)) { if (s.enabled !== false) fatal.push(`${at}.animations: 缺少或不是对象`); continue; }
+      for (const k of ['idle', 'turn', 'drag', 'clicks']) {
+        if (k in a && !Array.isArray(a[k])) warnings.push(`${at}.animations.${k}: 应该是数组`);
+        else if (Array.isArray(a[k])) a[k].forEach((n, i) => { if (typeof n !== 'string' || !n) warnings.push(`${at}.animations.${k}[${i}]: 应该是动画名字符串`); });
+      }
+      if (s.enabled !== false && !(Array.isArray(a.idle) && a.idle.some((n) => typeof n === 'string' && n))) fatal.push(`${at}.animations.idle: 启用的角色必须至少有一个待机动画`);
+      if ('moves' in a) {
+        if (!isObj(a.moves)) warnings.push(`${at}.animations.moves: 应该是对象`);
+        else if ('actions' in a.moves && !Array.isArray(a.moves.actions)) warnings.push(`${at}.animations.moves.actions: 应该是数组`);
+        else (a.moves.actions || []).forEach((m, i) => { if (!isObj(m) || typeof m.name !== 'string') warnings.push(`${at}.animations.moves.actions[${i}]: 需要 { name: 字符串 }`); });
+      }
+      if ('categories' in a && !Array.isArray(a.categories)) warnings.push(`${at}.animations.categories: 应该是数组`);
+      if ('events' in a) {
+        if (!isObj(a.events)) warnings.push(`${at}.animations.events: 应该是对象`);
+        else for (const [k, pool] of Object.entries(a.events)) if (!Array.isArray(pool)) warnings.push(`${at}.animations.events.${k}: 应该是数组，已忽略`);
+      }
+    }
+  }
+  return { fatal, warnings };
 }
 
 /**
@@ -90,25 +154,50 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
     return path.join(appRoot, 'config', 'species.jsonc');
   }
 
+  let lastGood = null; // 上次通过校验的原始配置（内存里，不写回用户文件）
+  const bundledFile = () => path.join(appRoot, 'config', 'species.jsonc');
+
+  function readRaw(file) {
+    return parseJsonc(fs.readFileSync(file, 'utf8'));
+  }
+
   function load() {
     fileCache.clear();
     const file = configFile();
     const errors = [];
-    let raw = {};
+    let raw = null;
+    let source = file === bundledFile() ? 'bundled' : 'user';
+    let broken = false;
+    let v;
     try {
-      raw = parseJsonc(fs.readFileSync(file, 'utf8'));
+      raw = readRaw(file);
+      v = validateSpeciesRaw(raw);
     } catch (e) {
-      errors.push(`读取 ${file} 失败：${e && e.message ? e.message : e}`);
-      // 用户配置坏了：退回程序自带的
-      const fallback = path.join(appRoot, 'config', 'species.jsonc');
-      if (file !== fallback) {
+      v = { fatal: [`读取 ${file} 失败：${e && e.message ? e.message : e}`], warnings: [] };
+    }
+    if (v.fatal.length) {
+      broken = true;
+      errors.push(...v.fatal.map((x) => `${path.basename(file)} ${x}`));
+      // 配置坏了：先退回上次可用的，再退回程序自带的；用户的文件原样不动
+      if (lastGood) {
+        raw = lastGood;
+        source = 'last-good';
+        errors.push('配置有错误，暂时使用上一次能用的配置');
+      } else {
+        source = 'bundled';
         try {
-          raw = parseJsonc(fs.readFileSync(fallback, 'utf8'));
+          raw = readRaw(bundledFile());
+          if (validateSpeciesRaw(raw).fatal.length) raw = {};
         } catch {
           raw = {};
         }
+        errors.push('配置有错误，暂时使用程序自带的配置');
       }
+    } else {
+      errors.push(...v.warnings.map((x) => `${path.basename(file)} ${x}`));
+      lastGood = raw;
     }
+    raw = isObj(raw) ? raw : {};
     const size = Number(raw.size) >= 120 && Number(raw.size) <= 1600 ? Number(raw.size) : 400;
     const pos = raw.position && typeof raw.position === 'object' ? raw.position : {};
     const position = {
@@ -119,14 +208,14 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
     const whisperIntervalSec = Number.isFinite(Number(raw.whisperIntervalSec)) ? Math.max(0, Number(raw.whisperIntervalSec)) : 300;
     const whisperImageEnabled = raw.whisperImageEnabled !== false;
     const species = {};
-    const src = raw.species && typeof raw.species === 'object' ? raw.species : {};
+    const src = isObj(raw.species) ? raw.species : {};
     for (const id of CHARACTERS) {
       const s = src[id];
       if (!s || typeof s !== 'object') {
         species[id] = { id, name: id, enabled: false, whisperPrompt: '', whisperLines: [], animations: normalizeAnimations({}), animationWeights: { idle: 100, turn: 0, move: 0 } };
         continue;
       }
-      const w = s.animationWeights && typeof s.animationWeights === 'object' ? s.animationWeights : {};
+      const w = isObj(s.animationWeights) ? s.animationWeights : {};
       species[id] = {
         id,
         name: String(s.name || id),
@@ -138,10 +227,12 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
         animations: normalizeAnimations(s.animations),
         animationWeights: { idle: Number(w.idle) || 0, turn: Number(w.turn) || 0, move: Number(w.move) || 0 },
       };
-      if (!species[id].animations.idle.length) errors.push(`角色 ${id} 没有配置 animations.idle`);
+      if (!species[id].animations.idle.length && species[id].enabled && !broken) errors.push(`角色 ${id} 没有配置 animations.idle`);
     }
     for (const k of Object.keys(src)) if (!CHARACTERS.includes(k)) errors.push(`未知角色 id：${k}（只认 ${CHARACTERS.join('/')}）`);
-    state = { size, position, whisperIntervalSec, whisperImageEnabled, species, errors, file };
+    // 「用户把角色全禁用了」和「配置坏了」是两回事：前者是用户的选择，不算错误
+    const allDisabled = !broken && CHARACTERS.every((id) => !species[id].enabled);
+    state = { size, position, whisperIntervalSec, whisperImageEnabled, species, errors, file, source, broken, allDisabled };
     return state;
   }
 
@@ -212,13 +303,14 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
   function prunedAnimations(id) {
     const s = state.species[id];
     const a = JSON.parse(JSON.stringify(s.animations));
+    a.events = normalizeEvents(a.events);
     const ok = (n) => resolveAnim(id, n) !== null;
     for (const k of ['idle', 'turn', 'drag', 'clicks']) a[k] = a[k].filter(ok);
     a.moves.actions = a.moves.actions.filter((m) => ok(m.name));
     a.categories = a.categories.map((c) => ({ ...c, actions: c.actions.filter(ok) })).filter((c) => c.actions.length);
     const ev = {};
     for (const [k, pool] of Object.entries(a.events)) {
-      const kept = (pool || [])
+      const kept = (Array.isArray(pool) ? pool : [])
         .map((slot) => (Array.isArray(slot) ? slot.filter(ok) : ok(slot) ? slot : null))
         .filter((slot) => slot && (!Array.isArray(slot) || slot.length));
       if (kept.length) ev[k] = kept;
@@ -270,4 +362,4 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
   return { load, get, assetDirs, resolveAnim, isAvailable, describe, mergedConfig, configFile };
 }
 
-module.exports = { createSpeciesStore, referencedAnims, normalizeAnimations, GLOBAL_DEFAULTS };
+module.exports = { createSpeciesStore, referencedAnims, normalizeAnimations, validateSpeciesRaw, GLOBAL_DEFAULTS };
