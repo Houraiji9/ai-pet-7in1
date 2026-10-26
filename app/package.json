@@ -8,7 +8,7 @@
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/",
+    "test": "node tools/run-tests.js",
     "smoke": "node tools/smoke.js && node tools/smoke-ui.js",
     "sync-assets": "node tools/sync-assets.js",
     "build:win": "node tools/sync-assets.js && electron-builder --win nsis --x64 --publish never",
@@ -85,5 +85,8 @@
       "artifactName": "AI-Pet-7in1-Setup-${version}.exe",
       "differentialPackage": true
     }
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

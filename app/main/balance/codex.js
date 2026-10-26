@@ -98,6 +98,14 @@ function codexCommandCandidates(env = process.env, platform = process.platform, 
 /** Windows 上 .cmd 必须经 cmd.exe 启动；参数都是固定安全词，只有路径需要加引号 */
 function codexSpawnSpec(command, platform = process.platform) {
   const args = ['-s', 'read-only', '-a', 'never', 'app-server'];
+  // 测试用：AIPET_CODEX_COMMAND='["<node/electron 路径>","fake.js"]'，不依赖 shebang（Windows 上 .js 会 EFTYPE）
+  if (typeof command === 'string' && command.startsWith('[')) {
+    let arr = null;
+    try { arr = JSON.parse(command); } catch { arr = null; }
+    if (Array.isArray(arr) && arr.length && arr.every((x) => typeof x === 'string' && x)) {
+      return { command: arr[0], args: [...arr.slice(1), ...args], runAsNode: true };
+    }
+  }
   if (platform !== 'win32' || !/\.(cmd|bat)$/i.test(command)) return { command, args };
   const q = (s) => (/^[A-Za-z0-9_./:=\\-]+$/.test(s) ? s : '"' + String(s).replace(/"/g, '\\"') + '"');
   return { command: 'cmd.exe', args: ['/d', '/s', '/c', [q(command), ...args].join(' ')] };
@@ -195,7 +203,8 @@ async function readRpcWith(command, ctx) {
   const platform = ctx.platform || process.platform;
   const spawnFn = ctx.spawn || spawn;
   const spec = codexSpawnSpec(command, platform);
-  const child = spawnFn(spec.command, spec.args, { windowsHide: true, env, stdio: ['pipe', 'pipe', 'pipe'] });
+  const childEnv = spec.runAsNode ? { ...env, ELECTRON_RUN_AS_NODE: '1' } : env;
+  const child = spawnFn(spec.command, spec.args, { windowsHide: true, env: childEnv, stdio: ['pipe', 'pipe', 'pipe'] });
   const rpc = jsonRpc(child, ctx.rpcTimeoutMs || CODEX_RPC_TIMEOUT_MS);
   try {
     await rpc.send('initialize', { clientInfo: { name: 'ai-pet-7in1', title: 'AI Pet 7in1', version: '0.1.0' } });

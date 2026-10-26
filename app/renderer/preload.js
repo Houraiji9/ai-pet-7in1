@@ -1,6 +1,11 @@
 // preload 桥（复制自 dsh-pet runtime/electron-helper/preload.js，删掉了「打开 DSH 网站」，加了角色切换两条通道）
 // 原有原语的说明见原项目：setBounds / setInteractive / setInputBusy / setInputRegions / 跨窗碰撞 / onDisplays。
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
+// 测试可复现：冒烟测试给了种子就把页面的 Math.random 固定下来
+if (process.env.AIPET_SMOKE_SEED) {
+  const seed = Number(process.env.AIPET_SMOKE_SEED) >>> 0 || 1;
+  webFrame.executeJavaScript(`(()=>{let a=${seed};Math.random=()=>{a=(a+0x6d2b79f5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};})()`);
+}
 
 contextBridge.exposeInMainWorld('petBridge', {
   setBounds(x, y, width, height, boxX, boxY, size, bottomPad, vx, vy, marginL, marginT) {

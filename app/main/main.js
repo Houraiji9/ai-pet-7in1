@@ -51,6 +51,20 @@ const APP_ROOT = path.join(__dirname, '..');
 /** 用户目录：%APPDATA%\ai-pet-7in1（覆盖配置、额外素材、日志都在这里） */
 const USER_DIR = process.env.AIPET_USER_DIR || app.getPath('userData');
 /** 开发时（npm start）直接读项目目录 ai-pet-7in1/assets/<角色>/webm，免得每次复制素材 */
+/** 测试隔离：userData/session/DPI 缓存全落到 AIPET_USER_DIR，外网一律拦掉，不启动自动更新 */
+const TEST_ISOLATED = process.env.AIPET_TEST_ISOLATED === '1';
+const testGuard = require('./test-guard.js');
+if (TEST_ISOLATED) {
+  app.setPath('userData', USER_DIR);
+  app.setPath('sessionData', path.join(USER_DIR, 'session'));
+  testGuard.installNodeGuard((u) => console.log('[隔离] 拦截外网请求 ' + u));
+}
+/** 测试可复现：AIPET_SMOKE_SEED 固定主进程 Math.random（渲染端由 preload 同样固定） */
+if (process.env.AIPET_SMOKE_SEED) {
+  let a = Number(process.env.AIPET_SMOKE_SEED) >>> 0 || 1;
+  Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const netFetch = TEST_ISOLATED ? testGuard.guardFetch((u, o) => net.fetch(u, o), (u) => console.log('[隔离] 拦截外网请求 ' + u)) : (u, o) => net.fetch(u, o);
 const PROJECT_ASSETS = !app.isPackaged && fs.existsSync(path.join(APP_ROOT, '..', 'assets')) ? path.join(APP_ROOT, '..', 'assets') : null;
 const LOG_FILE = path.join(USER_DIR, 'logs', 'ai-pet.log');
 
@@ -377,7 +391,7 @@ function initAssetSync() {
   assetSync = createAssetSync({
     dir: path.join(USER_DIR, 'assets'),
     characters: CHARACTERS,
-    fetch: (url, opts) => net.fetch(url, opts),
+    fetch: (url, opts) => netFetch(url, opts),
     baseUrl: process.env.AIPET_ASSET_BASE || undefined,
     log,
     bundledFile: (id, name) => {
@@ -863,21 +877,39 @@ function startSmoke() {
   const shots = String(process.env.AIPET_SMOKE_SHOTS || '').split(',').map(Number).filter((n) => n > 0);
   const started = Date.now();
   const rows = [];
-  const tick = setInterval(async () => {
-    if (!petWin || petWin.isDestroyed()) return;
+  const events = [];
+  let phase = 'start';
+  let finished = false;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  async function sampleRow() {
+    if (!petWin || petWin.isDestroyed()) return null;
     try {
       const r = await petWin.webContents.executeJavaScript(`(() => {
         const d = window.__dshPetDebug || {};
         const v = [...document.querySelectorAll('video.pet-video')].find((x) => x.classList.contains('is-front'));
         return { species: d.species, configOk: d.configOk, sprites: d.spriteCount, errors: (d.errors || []).slice(-3),
                  front: v ? decodeURIComponent(v.src.split('/thumb/')[1] || '') : '', paused: v ? v.paused : null,
-                 errorText: document.getElementById('pet-error').textContent,
+                 errorText: (document.getElementById('pet-error') || { textContent: '' }).textContent,
                  bubble: (document.querySelector('.pet-bubble.is-on') || { textContent: '' }).textContent };
       })()`);
-      rows.push({ t: Date.now() - started, main: switcher.current, mode, fgExe: latest && latest.fg && latest.fg.path ? basename(latest.fg.path) : '', ...r });
+      return { t: Date.now() - started, phase, main: switcher.current, mode, fgExe: latest && latest.fg && latest.fg.path ? basename(latest.fg.path) : '', ...r };
     } catch (e) {
-      rows.push({ t: Date.now() - started, err: String(e) });
+      return { t: Date.now() - started, phase, err: String(e) };
     }
+  }
+  /** 轮询直到 pred 成立或超时；返回最后一次取到的值 */
+  async function waitValue(get, pred, timeoutMs) {
+    const end = Date.now() + timeoutMs;
+    let v;
+    for (;;) {
+      try { v = await get(); } catch { v = undefined; }
+      if (pred(v) || Date.now() >= end || finished) return v;
+      await sleep(50);
+    }
+  }
+  const tick = setInterval(async () => {
+    const r = await sampleRow();
+    if (r) rows.push(r);
   }, 250);
   for (const at of shots) {
     setTimeout(async () => {
@@ -889,17 +921,29 @@ function startSmoke() {
       }
     }, at);
   }
-  // 脚本化操作：[{ at, do: 'menu-lock'|'menu-auto'|'tray'|'whisper'|'reload'|'context-menu', species? }]
-  const events = [];
+  function finish(timedOut) {
+    if (finished) return;
+    finished = true;
+    clearInterval(tick);
+    fs.writeFileSync(SMOKE_OUT, JSON.stringify({ rows, events, timedOut: !!timedOut, debug: debugPayload() }, null, 2));
+    app.quit();
+  }
+  // 脚本化操作按顺序执行：[{ at?（最早开始时间）, mark?（阶段名，写进采样行）, do, ... }]
   let script = [];
   try {
     script = JSON.parse(process.env.AIPET_SMOKE_SCRIPT || '[]');
   } catch {
     script = [];
   }
-  for (const step of script) {
-    setTimeout(async () => {
-      const rec = { t: Date.now() - started, do: step.do };
+  const cap = setTimeout(() => finish(script.length > 0), totalMs); // 没脚本时按时长结束；有脚本时这是总超时
+  if (!script.length) return;
+  (async () => {
+    for (const step of script) {
+      if (finished) return;
+      if (step.at) await sleep(Math.max(0, step.at - (Date.now() - started)));
+      if (step.mark) phase = step.mark;
+      if (!step.do) continue;
+      const rec = { t: Date.now() - started, do: step.do, mark: step.mark };
       try {
         if (step.do === 'menu-lock' || step.do === 'menu-auto') {
           // 走真实的渲染端右键菜单处理函数 → IPC → 主进程 setMode
@@ -929,6 +973,20 @@ function startSmoke() {
           })()`);
         } else if (step.do === 'tray') {
           rec.tray = buildTrayMenu().items.map((i) => (i.submenu ? i.label + ' > [' + i.submenu.items.map((x) => x.label + (x.checked ? '*' : '') + (x.enabled ? '' : '(禁用)')).join(' | ') + ']' : i.label));
+        } else if (step.do === 'fg') {
+          fs.writeFileSync(process.env.AIPET_FOREGROUND_MOCK, JSON.stringify(step.fg));
+        } else if (step.do === 'sleep') {
+          await sleep(step.ms || 0);
+        } else if (step.do === 'wait') {
+          // 等可观察的状态，而不是固定毫秒：{ until: { main?, species?, mode?, front?, frontNot?, bubbleIn?, configOk? }, timeoutMs? }
+          const u = step.until || {};
+          const match = (r) =>
+            !!r && (u.main === undefined || r.main === u.main) && (u.species === undefined || r.species === u.species) && (u.mode === undefined || r.mode === u.mode) &&
+            (u.configOk === undefined || r.configOk === u.configOk) && (u.front === undefined || String(r.front).startsWith(u.front)) &&
+            (u.frontNot === undefined || (r.front && r.front !== u.frontNot)) && (u.bubbleIn === undefined || u.bubbleIn.includes(r.bubble));
+          const r = await waitValue(sampleRow, match, step.timeoutMs || 8000);
+          rec.ok = match(r);
+          rec.row = r;
         } else if (step.do === 'whisper') {
           petApi.whisper(switcher.current);
         } else if (step.do === 'reload') {
@@ -936,21 +994,18 @@ function startSmoke() {
         } else if (step.do === 'balance') {
           // 走真实的右键菜单处理函数 → POST /balance → 主进程查询 → /state → 气泡
           await petWin.webContents.executeJavaScript(`sprites[0].onMenuAction({ action: 'show-balance' }); true`);
-          await new Promise((r) => setTimeout(r, 150));
-          rec.loading = await petWin.webContents.executeJavaScript(`(document.querySelector('.pet-bubble.is-on') || { textContent: '' }).textContent`);
-          await new Promise((r) => setTimeout(r, step.waitMs || 2500));
-          rec.bubble = await petWin.webContents.executeJavaScript(`(document.querySelector('.pet-bubble.is-on') || { textContent: '' }).textContent`);
+          const bubble = () => petWin.webContents.executeJavaScript(`(document.querySelector('.pet-bubble.is-on') || { textContent: '' }).textContent`);
+          rec.loading = await waitValue(bubble, (t) => /正在查询/.test(t), 2000);
+          rec.bubble = await waitValue(bubble, (t) => t && !/正在查询/.test(t), step.waitMs || 8000);
           rec.species = switcher.current;
         } else if (step.do === 'balance-settings') {
           openBalanceSettings();
-          await new Promise((r) => setTimeout(r, 1200));
-          rec.settingsText = await balanceSettingsWin.webContents.executeJavaScript('document.body.innerText.slice(0, 1500)');
+          rec.settingsText = await waitValue(() => balanceSettingsWin.webContents.executeJavaScript('document.body ? document.body.innerText.slice(0, 1500) : ""'), (t) => new RegExp(step.expect || '.{20}').test(t), 6000);
           const img = await balanceSettingsWin.webContents.capturePage();
           fs.writeFileSync(SMOKE_OUT.replace(/\.json$/, '') + '-balance-settings.png', img.toPNG());
         } else if (step.do === 'debug-window') {
           openDebugWindow();
-          await new Promise((r) => setTimeout(r, 1200));
-          rec.debugText = await debugWin.webContents.executeJavaScript('document.body.innerText.slice(0, 6000)');
+          rec.debugText = await waitValue(() => debugWin.webContents.executeJavaScript('document.body ? document.body.innerText.slice(0, 6000) : ""'), (t) => new RegExp(step.expect || '.{20}').test(t), 6000);
           const img = await debugWin.webContents.capturePage();
           fs.writeFileSync(SMOKE_OUT.replace(/\.json$/, '') + '-debug.png', img.toPNG());
         }
@@ -959,13 +1014,12 @@ function startSmoke() {
       }
       rec.after = { main: switcher.current, mode };
       events.push(rec);
-    }, step.at);
-  }
-  setTimeout(() => {
-    clearInterval(tick);
-    fs.writeFileSync(SMOKE_OUT, JSON.stringify({ rows, events, debug: debugPayload() }, null, 2));
-    app.quit();
-  }, totalMs);
+    }
+    const last = await sampleRow();
+    if (last) rows.push(last);
+    clearTimeout(cap);
+    finish(false);
+  })();
 }
 
 // ---------- 启动 ----------
@@ -1013,8 +1067,8 @@ app.whenReady().then(() => {
   startWatcher();
   startWhisperTimer();
   updater = createUpdater({ log, onState: () => refreshTray() });
-  setTimeout(() => updater.check(false), 15000); // 启动 15 秒后静默检查一次
-  setInterval(() => updater.check(false), 6 * 3600 * 1000); // 常驻时每 6 小时再查一次
+  if (!TEST_ISOLATED) setTimeout(() => updater.check(false), 15000); // 启动 15 秒后静默检查一次
+  if (!TEST_ISOLATED) setInterval(() => updater.check(false), 6 * 3600 * 1000); // 常驻时每 6 小时再查一次
   initAssetSync();
 
   let displaysTimer = null;
