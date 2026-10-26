@@ -10,7 +10,7 @@
 |---|---|
 | GPT 龙娘 | Codex / ChatGPT |
 | Gemini 娘 | Gemini / Antigravity |
-| GLM 狐娘 | 智谱 / ZCode |
+| GLM 狐娘 | ZCode |
 | Claude 娘 | Claude |
 | Kimi 娘 | Kimi |
 | DeepSeek 娘（原项目自带） | DeepSeek / WorkBuddy |
