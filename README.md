@@ -1,6 +1,6 @@
 # AI 七合一桌宠（ai-pet-7in1）
 
-主人在用哪个 AI 程序，桌面上就站着哪个角色：
+你在用哪个 AI 程序，桌面上就站着哪个角色：
 切到 Codex 就换成 GPT 龙娘，切到 Gemini / Antigravity 就换成 Gemini 娘……
 换角色时会先播一段「登场」动画，然后回到待机。切到微信、资源管理器这类和 AI 无关的程序时，角色保持不变。
 
@@ -32,7 +32,7 @@
 
 ### Windows 弹出蓝色「已保护你的电脑」怎么办
 
-安装包没有数字签名（个人项目买不起证书），所以第一次运行 Windows SmartScreen 会拦一下：
+安装包没有数字签名（个人项目暂无代码签名证书），所以第一次运行 Windows SmartScreen 会拦一下：
 点「**更多信息**」→「**仍要运行**」就行。
 担心文件被篡改的话，可以核对 SHA-256：每个版本的值都写在 Releases 页的说明里。
 在 PowerShell 里运行 `Get-FileHash .\AI-Pet-7in1-Setup-0.6.0.exe` 就能算出来对照。
@@ -57,7 +57,7 @@
 - **右键角色**：查看余额 / 碎碎念 / 回到初始位置 / 切换角色（自动或锁定）/ 重载配置。
 - **托盘图标（左键或右键都行）**：
   - 自动切换：跟着前台程序换角色（默认）。
-  - 锁定角色：固定成某一个角色，不管主人在用什么程序。没有素材的角色是灰的。
+  - 锁定角色：固定成某一个角色，不管当前在用什么程序。没有素材的角色是灰的。
   - 查看余额（当前角色）/ 余额设置（API Key）…（见下面「查看余额」）
   - 调试：查看前台窗口…（见第 2 节）
   - 最近的前台程序：点一下就把那个程序的完整路径复制到剪贴板。
@@ -86,7 +86,7 @@
 
 ## 2. 修改「哪个程序对应哪个角色」
 
-这份映射规则是从**主人之前那个 C# 桌宠（old-codex-pet）**搬过来的，那边在真机上验证过的写法都保留了。
+以下映射已在真机上逐一验证。
 
 | 角色 | 认哪个程序 | 状态 |
 |---|---|---|
@@ -96,37 +96,35 @@
 | Gemini | `Gemini.exe`，而且路径里有 `Google\Gemini` | ✅ 已验证 |
 | DeepSeek | `DeepSeek Harness.exe` | ✅ 已验证 |
 | Grok | `Grok Bot.exe` | ✅ 已验证 |
-| Grok | Grok Build（预留，默认关闭） | — |
-| Claude | `Claude.exe` | ❓ 猜的，待确认 |
-| Gemini | `Antigravity.exe` | ❓ 猜的，待确认 |
-| DeepSeek | `WorkBuddy.exe` | ❓ 猜的，待确认 |
-| Grok | `Cursor.exe` | ❓ 猜的，待确认 |
+| Claude | `Claude.exe` | ✅ 已验证 |
+| Gemini | `Antigravity.exe` | ✅ 已验证 |
+| DeepSeek | `WorkBuddy.exe` | ✅ 已验证 |
+| Grok | `Cursor.exe` | ✅ 已验证 |
 
 桌宠只看「前台窗口属于哪个 exe」，默认**不看**窗口标题。
-每 0.1 秒看一次，同一个结果要稳定 0.3 秒才会真的换角色，所以 Alt+Tab 快速划过时不会乱闪。这和旧桌宠的做法一样。
+每 0.1 秒看一次，同一个结果要稳定 0.3 秒才会真的换角色，所以 Alt+Tab 快速划过时不会乱闪。
 
-### 确认「猜的」exe 名对不对
+### 适配其他程序（查看 exe 名）
 
 1. 托盘菜单 → **调试：查看前台窗口…**，会弹出一个一直置顶的小窗口。
-2. 点一下想识别的程序（比如 Claude），小窗口里会显示：
+2. 点一下想识别的程序，小窗口里会显示：
    - **exe 文件名**（大字），例如 `Claude.exe`
    - **完整路径**，例如 `C:\Users\…\AppData\Local\AnthropicClaude\app-1.2.3\Claude.exe`
-   - **识别结果**：绿色 = 已验证规则命中；橙色 = 未验证规则命中；灰色 = 没命中
-3. 如果 exe 名和表里写的不一样，就按下面的步骤改。
+   - **识别结果**：绿色 = 命中规则；灰色 = 没命中
+3. 程序改了名、或想让别的程序也对应某个角色，就按下面的步骤改。
 
 ### 改配置文件
 
 1. 托盘菜单 → **打开配置文件夹**。
 2. 用记事本打开 `agents.jsonc`。里面每一项都有中文注释。
-3. 比如 Claude 的真实 exe 名是 `claude-desktop.exe`，就把
+3. 比如想让 `claude-desktop.exe` 也对应 Claude，就把
    ```
    "executables": ["Claude.exe"],
    ```
    改成
    ```
-   "executables": ["claude-desktop.exe"],
+   "executables": ["Claude.exe", "claude-desktop.exe"],
    ```
-   确认能用以后，顺手把 `"verified": false` 改成 `true`。
 4. 存盘，然后托盘菜单 → **重新加载配置**。
 
 几个注意点：
@@ -136,7 +134,7 @@
 - 不想要某一条规则，把 `"enabled"` 改成 `false`。
 - 文件写坏了（比如少了引号）也不会崩：托盘菜单顶部会出现一行⚠提示，桌宠会继续用自带的默认规则。
 - **按网页标题识别**（比如在浏览器里开 chatgpt.com）：文件最下面有 `browserTitleRules`，默认关闭。想用的话，把 `"enabled": false` 改成 `true`。
-- 配置文件夹的位置：`%APPDATA%\ai-pet-7in1\`。第一次启动时，桌宠会把自带的配置复制到这里。以后更新程序也不会覆盖主人改过的文件；想恢复默认，删掉这个文件再重启就行。
+- 配置文件夹的位置：`%APPDATA%\ai-pet-7in1\`。第一次启动时，桌宠会把自带的配置复制到这里。以后更新程序也不会覆盖你改过的文件；想恢复默认，删掉这个文件再重启就行。
 
 ### 其他可改的东西（`species.jsonc`）
 
@@ -189,7 +187,7 @@
   - 拖拽 + 重力 + 落地、随机走动、点击反应、右键菜单的样子；
   - 动画播放器和全部 DeepSeek 娘素材。
 - **新增**：
-  - 七个角色，以及「跟着前台程序换角色」（规则来自主人的旧 C# 桌宠）；
+  - 七个角色，以及「跟着前台程序换角色」；
   - 换角色时播登场动画；
   - 托盘菜单（自动 / 锁定 / 调试 / 日志 / 配置 / 退出）；
   - 调试窗口；
@@ -212,7 +210,7 @@
 |---|---|---|
 | [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) | 桌宠程序框架（Electron 独立模式、渲染器、动画播放），以及 DeepSeek 娘全套动画 | 代码 MIT（见 `app/LICENSE-dsh-pet.txt`）；DeepSeek 动画作者声明禁止商用 |
 | [Javis603/token-monitor](https://github.com/Javis603/token-monitor) | 查看余额：Codex / Cursor / ZCode 额度的读取与解析 | MIT（见 `app/LICENSE-token-monitor.txt`） |
-| 主人之前的 C# 桌宠（`old-codex-pet\`） | 前台程序 → 角色 的识别规则 | 自有代码 |
+| 作者早前的 C# 桌宠（`old-codex-pet\`） | 前台程序 → 角色 的识别规则 | 自有代码 |
 
 本项目的程序代码以 MIT 发布，见 [`LICENSE`](LICENSE)。
 
@@ -235,7 +233,7 @@
 ai-pet-7in1\
 ├─ README.md            ← 就是这份说明
 ├─ assets\gpt\webm\     ← 各角色的动画（安装包只带核心；其余第一次启动从 GitHub 按需下载）
-├─ old-codex-pet\       ← 主人之前的 C# 桌宠（只参考了它的识别规则，没有改它）
+├─ old-codex-pet\       ← 作者早前的 C# 桌宠（只参考了它的识别规则）
 └─ app\                 ← 新桌宠
    ├─ config\agents.jsonc    程序→角色 映射（默认版）
    ├─ config\species.jsonc   角色、动作、台词（默认版）
@@ -247,4 +245,4 @@ ai-pet-7in1\
    └─ dist\                  打包好的 exe
 ```
 
-出问题时：托盘菜单 → **打开日志文件**，把里面最后几十行发给帮主人修的人就行。
+出问题时：托盘菜单 → **打开日志文件**，把最后几十行附在 [Issues](https://github.com/Houraiji9/ai-pet-7in1/issues) 里反馈。

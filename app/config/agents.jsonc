@@ -2,9 +2,8 @@
 // 前台程序 → 角色 映射表（可以用记事本直接改，改完在托盘菜单点「重新加载配置」）
 //
 // 识别方式：只看「当前前台窗口」所属程序的 exe 文件名 / 完整路径 / 包身份，默认不看窗口标题。
-// 带 "verified": true 的规则来自主人之前的 C# 桌宠（old-codex-pet/config/agents.json），已在真机上验证过；
-// 带 "verified": false 的是猜的 exe 名，还没验证——请打开托盘菜单「调试：查看前台窗口…」，
-// 切到对应程序，看「exe 文件名 / 完整路径」，不对的话改这里的 executables。
+// 下面的默认规则都已在真机上验证过。程序改名或想加新程序时，打开托盘菜单「调试：查看前台窗口…」，
+// 切到对应程序，看「exe 文件名 / 完整路径」，再改这里的 executables。
 //
 // 字段说明：
 //   id            规则名字（随便起，不能重复）
@@ -55,10 +54,10 @@
     { "id": "grok-build", "label": "Grok Build（预留）", "character": "grok", "executables": [], "enabled": false, "verified": false },
 
     // ---------- 未验证（猜的 exe 名，请用调试窗口确认） ----------
-    { "id": "claude", "label": "Claude 桌面端", "character": "claude", "executables": ["Claude.exe"], "enabled": true, "verified": false },
-    { "id": "antigravity", "label": "Antigravity（反重力）", "character": "gemini", "executables": ["Antigravity.exe"], "enabled": true, "verified": false },
-    { "id": "workbuddy", "label": "WorkBuddy", "character": "deepseek", "executables": ["WorkBuddy.exe"], "enabled": true, "verified": false },
-    { "id": "cursor", "label": "Cursor", "character": "grok", "executables": ["Cursor.exe"], "enabled": true, "verified": false }
+    { "id": "claude", "label": "Claude 桌面端", "character": "claude", "executables": ["Claude.exe"], "enabled": true, "verified": true },
+    { "id": "antigravity", "label": "Antigravity（反重力）", "character": "gemini", "executables": ["Antigravity.exe"], "enabled": true, "verified": true },
+    { "id": "workbuddy", "label": "WorkBuddy", "character": "deepseek", "executables": ["WorkBuddy.exe"], "enabled": true, "verified": true },
+    { "id": "cursor", "label": "Cursor", "character": "grok", "executables": ["Cursor.exe"], "enabled": true, "verified": true }
   ],
 
   // ---------- 可选：浏览器网页版（按标签页标题识别），默认关闭 ----------
