@@ -327,7 +327,7 @@ test('GLM：ZCode 编程套餐（3.11 明文镜像 Key）→ open.bigmodel.cn qu
   const calls = [];
   const f = fakeFetch({ 'https://open.bigmodel.cn/api/monitor/usage/quota/limit': S.zaiQuota, 'https://open.bigmodel.cn/api/biz/subscription/list': S.zaiSubscription }, calls);
   const r = await zcode.fetchZcode({ getSecret: () => '', env: {}, fetch: f, zcodeDir: dir, homeDir: dir });
-  assert.equal(r.data.rows[0].text, 'GLM GLM Coding Pro 额度');
+  assert.equal(r.data.rows[0].text, 'ZCode 登录账号额度 · GLM Coding Pro');
   assert.equal(r.data.percent, 30);
   assert.equal(calls[0].headers.Authorization, 'Bearer zk-mirror');
   assert.equal(r.data.source, 'ZCode 本机登录');
@@ -351,6 +351,44 @@ test('GLM：手填 Key（国内版）→ 额度 + 账户现金余额', async () 
 test('GLM：网关 200 + code 401 → 凭证失效', async () => {
   const f = fakeFetch({ 'https://open.bigmodel.cn': () => ({ body: { code: 401, msg: 'token expired' } }) });
   await assert.rejects(zcode.fetchZcode({ getSecret: () => 'manual-key', env: {}, fetch: f, zcodeDir: '/no/such/zcode' }), (e) => e.balanceStatus === 'unauthorized');
+});
+
+test('GLM：ZCode 登录 + 手填 Key 分区显示', () => {
+  const rows = zcode.zcodeSectionRows({
+    laneA: { plan: 'Pro', windows: [{ label: '5小时', usedPercent: 30 }] },
+    laneB: { plan: 'Lite', windows: [{ label: '周', usedPercent: 5 }], money: { amount: 1.5, currency: 'CNY' } },
+    nowMs: 0,
+  });
+  const labels = rows.filter((r) => r.role === 'label').map((r) => r.text);
+  assert.deepEqual(labels, ['ZCode 登录账号额度 · Pro', '手填 API Key 额度/余额 · Lite']);
+  const iB = rows.findIndex((r) => r.text.startsWith('手填'));
+  assert.ok(rows.slice(0, iB).some((r) => /5小时/.test(r.text)));
+  assert.ok(rows.slice(iB).some((r) => /周/.test(r.text)) && rows.slice(iB).some((r) => /账户余额/.test(r.text)));
+});
+
+test('GLM：ZCode 失败、手填 Key 成功 → 显示 Key 那部分，并注明 ZCode 失败', async () => {
+  const dir = zcodeDir({ kind: 'individual-coding-plan', provider: { 'builtin:bigmodel-coding-plan': { options: { apiKey: 'zk-mirror' } } } });
+  const f = async (url, o) => {
+    const auth = (o && o.headers && o.headers.Authorization) || '';
+    if (auth.includes('zk-mirror')) return { ok: false, status: 500, json: async () => ({}), text: async () => '' };
+    return fakeFetch({
+      'https://open.bigmodel.cn/api/monitor/usage/quota/limit': S.zaiQuota,
+      'https://open.bigmodel.cn/api/biz/subscription/list': S.zaiSubscription,
+      'https://open.bigmodel.cn/api/biz/account/query-customer-account-report': S.zaiCash,
+    })(url, o);
+  };
+  const r = await zcode.fetchZcode({ getSecret: (n) => (n === 'zai' ? 'manual-key' : ''), getSetting: () => 'bigmodel-cn', env: {}, fetch: f, zcodeDir: dir, homeDir: dir });
+  const texts = r.data.rows.map((x) => x.text);
+  assert.equal(r.data.source, '手填 GLM Key');
+  assert.ok(texts.includes('ZCode 登录账号额度'));
+  assert.ok(texts.some((t) => /⚠/.test(t)));
+  assert.ok(texts.includes('账户余额 ¥23.46'));
+});
+
+test('GLM：手填 Key 额度失败、余额成功 → 注明额度失败', () => {
+  const rows = zcode.zcodeSectionRows({ laneA: { windows: [] }, laneB: { windows: [], money: { amount: 2, currency: 'CNY' }, partial: [{ what: '额度', err: new Error('x') }] }, nowMs: 0 });
+  assert.ok(rows.some((r) => r.text === '⚠ 额度查询失败'));
+  assert.ok(rows.some((r) => /账户余额/.test(r.text)));
 });
 
 // ---------------- Key 存储 ----------------

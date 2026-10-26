@@ -244,7 +244,11 @@ async function keyLane(key, region, ctx) {
   const usage = quota.status === 'fulfilled' ? quota.value : { plan: '', windows: [] };
   const money = cash.status === 'fulfilled' ? cashBalance(cash.value, region) : null;
   const error = !usage.windows.length && !money ? (quota.status === 'rejected' ? quota.reason : cash.status === 'rejected' ? cash.reason : null) : null;
-  return { plan: usage.plan, windows: usage.windows, money, error };
+  // 部分失败：一半查到了，另一半失败 → 记下哪一半失败，展示时说明
+  const partial = [];
+  if (!error && quota.status === 'rejected') partial.push({ what: '额度', err: quota.reason });
+  if (!error && cash.status === 'rejected') partial.push({ what: '账户余额', err: cash.reason });
+  return { plan: usage.plan, windows: usage.windows, money, error, partial };
 }
 
 function zcodeRows({ plan, windows, money }, nowMs) {
@@ -255,6 +259,57 @@ function zcodeRows({ plan, windows, money }, nowMs) {
     rows.push({ role: 'sub', text: `${w.label} 已用 ${fmtPercent(w.usedPercent)}${r ? ' · ' + r : ''}` });
   }
   if (money) rows.push({ role: 'sub', text: '账户余额 ' + fmtMoney(money.amount, money.currency) });
+  return rows;
+}
+
+/** 失败原因 → 简短中文（不带 URL / Key 等细节） */
+function failText(e) {
+  const st = e && e.balanceStatus;
+  if (st === 'unauthorized') return '凭证失效';
+  if (st === 'credential-missing') return '缺少凭证';
+  if (st === 'timeout') return '超时';
+  return '查询失败';
+}
+
+function windowRows(windows, nowMs) {
+  const rows = [];
+  for (const w of windows) {
+    if (w.usedPercent === null || w.usedPercent === undefined) continue;
+    const r = resetText(w.resetsAt, nowMs);
+    rows.push({ role: 'sub', text: `${w.label} 已用 ${fmtPercent(w.usedPercent)}${r ? ' · ' + r : ''}` });
+  }
+  return rows;
+}
+
+/**
+ * 两个来源分区展示，互不混淆：
+ *   「ZCode 登录账号额度」— 本机 ZCode 登录的套餐
+ *   「手填 API Key 额度/余额」— 余额设置里填的 Key
+ * 某个来源失败时，另一个照常显示，并注明失败的是哪个来源。
+ */
+function zcodeSectionRows({ laneA, laneB, nowMs }) {
+  const rows = [];
+  const aWin = (laneA && laneA.windows) || [];
+  const seen = new Set(aWin.map((w) => w.label + ':' + Math.round(w.usedPercent ?? -1)));
+  if (aWin.length) {
+    rows.push({ role: 'label', text: 'ZCode 登录账号额度' + (laneA.plan ? ' · ' + laneA.plan : '') });
+    rows.push(...windowRows(aWin, nowMs));
+  } else if (laneA && laneA.error) {
+    rows.push({ role: 'label', text: 'ZCode 登录账号额度' });
+    rows.push({ role: 'sub', text: '⚠ ' + failText(laneA.error) });
+  }
+  if (laneB) {
+    const bWin = (laneB.windows || []).filter((w) => !seen.has(w.label + ':' + Math.round(w.usedPercent ?? -1)));
+    const dupOnly = !bWin.length && (laneB.windows || []).length > 0;
+    if (bWin.length || laneB.money || laneB.error || (laneB.partial && laneB.partial.length)) {
+      rows.push({ role: 'label', text: '手填 API Key 额度/余额' + (laneB.plan && !dupOnly ? ' · ' + laneB.plan : '') });
+      rows.push(...windowRows(bWin, nowMs));
+      if (dupOnly) rows.push({ role: 'sub', text: '额度同上（同一个账号）' });
+      if (laneB.money) rows.push({ role: 'sub', text: '账户余额 ' + fmtMoney(laneB.money.amount, laneB.money.currency) });
+      if (laneB.error) rows.push({ role: 'sub', text: '⚠ ' + failText(laneB.error) });
+      for (const p of laneB.partial || []) rows.push({ role: 'sub', text: `⚠ ${p.what}${failText(p.err)}` });
+    }
+  }
   return rows;
 }
 
@@ -271,20 +326,12 @@ async function fetchZcode(ctx) {
     zcodeLane(ctx).catch((e) => ({ found: true, windows: [], error: e })),
     key ? keyLane(key, region, ctx).catch((e) => ({ windows: [], error: e })) : Promise.resolve(null),
   ]);
-  const windows = [...(laneA.windows || []), ...((laneB && laneB.windows) || [])];
-  // 同名窗口（两条通道查到同一个账号）只留一份
-  const seen = new Set();
-  const uniq = windows.filter((w) => {
-    const k = w.label + ':' + Math.round(w.usedPercent ?? -1);
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-  const money = laneB && laneB.money;
-  if (uniq.length || money) {
-    const percents = uniq.map((w) => w.usedPercent).filter((p) => p !== null && p !== undefined);
-    return linesResult('zcode', zcodeRows({ plan: laneA.plan || (laneB && laneB.plan) || '', windows: uniq, money }, nowMs), percents.length ? Math.max(...percents) : null, {
-      source: [laneA.windows && laneA.windows.length ? 'ZCode 本机登录' : '', laneB && (laneB.windows.length || laneB.money) ? '手填 GLM Key' : ''].filter(Boolean).join(' + '),
+  const aOk = !!(laneA.windows && laneA.windows.length);
+  const bOk = !!(laneB && ((laneB.windows && laneB.windows.length) || laneB.money));
+  if (aOk || bOk) {
+    const percents = [...(laneA.windows || []), ...((laneB && laneB.windows) || [])].map((w) => w.usedPercent).filter((p) => p !== null && p !== undefined);
+    return linesResult('zcode', zcodeSectionRows({ laneA, laneB, nowMs }), percents.length ? Math.max(...percents) : null, {
+      source: [aOk ? 'ZCode 本机登录' : '', bOk ? '手填 GLM Key' : ''].filter(Boolean).join(' + '),
     });
   }
   const err = (laneB && laneB.error) || laneA.error;
@@ -293,4 +340,4 @@ async function fetchZcode(ctx) {
   throw balanceError('fetch-error', laneA.note || 'GLM 这次没返回额度数据');
 }
 
-module.exports = { fetchZcode, parseZaiUsage, parseZcodeStartPlanBalances, cashBalance, zcodeRows, normalizeRegion, START_PLAN_BALANCE_URL, QUOTA_PATH, CASH_PATH };
+module.exports = { zcodeSectionRows, fetchZcode, parseZaiUsage, parseZcodeStartPlanBalances, cashBalance, zcodeRows, normalizeRegion, START_PLAN_BALANCE_URL, QUOTA_PATH, CASH_PATH };
