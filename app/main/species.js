@@ -144,7 +144,28 @@ function validateSpeciesRaw(raw) {
  * @param {string} o.userDir     用户目录（%APPDATA%\ai-pet-7in1），可放覆盖配置与素材
  * @param {string|null} o.projectAssetsDir 开发时的项目素材目录（ai-pet-7in1/assets），打包后为 null
  */
+/** 素材文件体检：返回问题描述，正常返回 ''（只读开头几十字节） */
+function checkAssetFile(file) {
+  let fd;
+  try {
+    fd = fs.openSync(file, 'r');
+    const buf = Buffer.alloc(64);
+    const n = fs.readSync(fd, buf, 0, 64, 0);
+    if (n === 0) return '空文件';
+    const head = buf.subarray(0, n);
+    if (head.toString('latin1').startsWith('version https://git-lfs')) return 'Git LFS 指针文件（真正的素材没下载）';
+    if (!(head[0] === 0x1a && head[1] === 0x45 && head[2] === 0xdf && head[3] === 0xa3)) return '不是 WebM 文件（无法解码）';
+    if (n < 32) return '文件太短（无法解码）';
+    return '';
+  } catch (e) {
+    return '读不了：' + (e && e.code ? e.code : e);
+  } finally {
+    if (fd !== undefined) try { fs.closeSync(fd); } catch { /* ignore */ }
+  }
+}
+
 function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
+  const badAssets = new Map(); // 文件 → 问题
   let state = { size: 400, position: DEFAULT_POSITION, whisperIntervalSec: 300, whisperImageEnabled: true, species: {}, errors: [], file: '' };
   const fileCache = new Map();
 
@@ -163,6 +184,7 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
 
   function load() {
     fileCache.clear();
+    badAssets.clear();
     const file = configFile();
     const errors = [];
     let raw = null;
@@ -248,7 +270,8 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
     return dirs;
   }
 
-  /** 找动画文件：返回 { file, kind } 或 null。name 不带扩展名 */
+  /** 找动画文件：返回 { file, kind } 或 null。name 不带扩展名。
+   *  空文件 / Git LFS 指针 / 不是 WebM 的文件当作「没有」，接着找下一个目录（记进 badAssets 给调试窗口看） */
   function resolveAnim(id, name) {
     if (!CHARACTERS.includes(id) || typeof name !== 'string' || !name || BAD_NAME.test(name) || name.includes('..')) return null;
     const key = id + '/' + name;
@@ -258,8 +281,12 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
       const f = path.join(dir, name + ANIM_EXT);
       try {
         if (fs.statSync(f).isFile()) {
-          hit = { file: f, kind };
-          break;
+          const why = checkAssetFile(f);
+          if (!why) {
+            hit = { file: f, kind };
+            break;
+          }
+          badAssets.set(f, why);
         }
       } catch {
         /* 不存在 */
@@ -296,6 +323,7 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
       placeholder: kinds.has('placeholder'),
       total: names.length,
       missing,
+      bad: [...badAssets.entries()].filter(([f]) => f.includes(path.sep + id + path.sep)).map(([f, why]) => path.basename(f) + '：' + why),
     };
   }
 
@@ -362,4 +390,4 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
   return { load, get, assetDirs, resolveAnim, isAvailable, describe, mergedConfig, configFile };
 }
 
-module.exports = { createSpeciesStore, referencedAnims, normalizeAnimations, validateSpeciesRaw, GLOBAL_DEFAULTS };
+module.exports = { checkAssetFile, createSpeciesStore, referencedAnims, normalizeAnimations, validateSpeciesRaw, GLOBAL_DEFAULTS };

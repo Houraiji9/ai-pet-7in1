@@ -11,6 +11,9 @@ const { createPetApi } = require('../main/pet-api.js');
 const APP = path.join(__dirname, '..');
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'aipet-test-'));
 
+/** 带 EBML 头的最小假 WebM（通过素材体检；内容用于区分来源） */
+const FAKE_WEBM = (tag) => Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(40), Buffer.from(tag)]);
+
 test('JSONC：注释、尾逗号、字符串里的 // 与逗号', () => {
   const v = parseJsonc('\uFEFF{\n // c\n "a": "http://x,y", /* b */ "b": [1,2,],\n}');
   assert.deepEqual(v, { a: 'http://x,y', b: [1, 2] });
@@ -36,12 +39,12 @@ test('素材查找顺序：用户目录 > 项目目录 > 程序自带；放入�
   const proj = tmp();
   const store = createSpeciesStore({ appRoot: APP, userDir: user, projectAssetsDir: proj });
   fs.mkdirSync(path.join(proj, 'kimi', 'webm'), { recursive: true });
-  fs.writeFileSync(path.join(proj, 'kimi', 'webm', '待机呼吸休闲.webm'), 'x');
+  fs.writeFileSync(path.join(proj, 'kimi', 'webm', '待机呼吸休闲.webm'), FAKE_WEBM('x'));
   store.load(); // 清缓存（托盘「重新加载配置」做的就是这个）
   assert.equal(store.isAvailable('kimi'), true);
   assert.equal(store.resolveAnim('kimi', '待机呼吸休闲').kind, 'project');
   fs.mkdirSync(path.join(user, 'species', 'kimi'), { recursive: true });
-  fs.writeFileSync(path.join(user, 'species', 'kimi', '待机呼吸休闲.webm'), 'y');
+  fs.writeFileSync(path.join(user, 'species', 'kimi', '待机呼吸休闲.webm'), FAKE_WEBM('y'));
   store.load();
   assert.equal(store.resolveAnim('kimi', '待机呼吸休闲').kind, 'user');
   // 只有待机：其它动画名被剪掉，渲染端不会点到 404（程序自带 kimi 素材已同步时跳过）

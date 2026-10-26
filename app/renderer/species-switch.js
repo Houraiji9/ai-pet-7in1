@@ -48,6 +48,7 @@ PetSprite.prototype.switchSpecies = function switchSpecies(pet) {
   this.renderBubble();
   this.pending = null;
   this.anim = '';
+  this.animFallback.reset(); // 隔离名单按角色算（不同角色可能有同名动画）
   window.__dshPetDebug.species = pet.id;
   window.__dshPetDebug.lastSwitch = { from: prev, to: pet.id, at: Date.now() };
   // 拖拽/飞行中：只换素材，等松手/落地后由原有逻辑接着播

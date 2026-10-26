@@ -101,6 +101,7 @@ class PetSprite {
     // 余额气泡
     this.bubbleOn = false;
     this.bubbleTimer = null;
+    this.animFallback = window.AnimFallback.createAnimFallback();
     // 悬浮提示（替代原生 title 属性）：显隐 + 最近一次光标位置（**视口坐标**，见 renderTip）
     this.tipOn = false;
     this.tipCursor = null;
@@ -383,6 +384,13 @@ class PetSprite {
   // 双缓冲切换（与浏览器同一套：前台 opacity 切换 + 降级视频清 handler 并停播，防残留 ended 雪崩）
   switchTo(next, nextOnce) {
     if (!next) return;
+    // 刚加载失败过的素材先隔离一会儿：换成上一段能播的 / 待机，免得反复卡在同一个坏文件上
+    if (this.animFallback.isQuarantined(next)) {
+      const fb = this.animFallback.pick(next, this.animations.idle);
+      if (!fb) return;
+      next = fb;
+      this.anim = fb;
+    }
     const pending = this.pending;
     if (pending && pending.anim === next && pending.once === nextOnce) {
       // 防重命中（单动画点击时目标=当前动画，不重播）：仍消费 Q 弹标记，压当前前台视频，
@@ -405,6 +413,7 @@ class PetSprite {
       frontEl.style.transform = this.mirrorFor(next) ? 'scaleX(-1)' : '';
       frontEl.currentTime = 0;
       frontEl.play().catch(() => {});
+      this.animFallback.ok(next);
       if (this.pendingSquash) {
         this.pendingSquash = false;
         this.startSquash(frontEl);
@@ -416,6 +425,8 @@ class PetSprite {
     const target = this.front === 0 ? this.videoB : this.videoA;
     const el = target;
     if (!el) return;
+    // 这个 <video> 上一次切换留下的监听/定时器先撤掉（世代令牌：旧的回调一律作废）
+    if (typeof el.__aipetCancelLoad === 'function') el.__aipetCancelLoad();
     el.dataset.src = url;
     el.src = url;
     el.loop = !nextOnce;
@@ -426,22 +437,39 @@ class PetSprite {
     // 加载兜底（与浏览器 web 端 fetch+blob 的 10s 超时同义）：素材加载失败或卡住时必须释放
     // pending，否则它永久挂起——之后相同目标会被防重分支吞掉、不同目标靠 gen 覆盖，
     // 表现就是"点了没反应"（#62 报告的就是 web 端同一类问题，桌面端此前完全没有兜底）。
+    let cancelled = false;
+    let loadTimer = null;
+    const cancel = () => {
+      cancelled = true;
+      if (loadTimer !== null) window.clearTimeout(loadTimer);
+      loadTimer = null;
+      el.removeEventListener('loadeddata', onReady);
+      if (el.onerror === onError) el.onerror = null;
+      if (el.__aipetCancelLoad === cancel) el.__aipetCancelLoad = null;
+    };
     const loadGuard = (why) => {
+      cancel();
       if (!this.pending || this.pending.gen !== gen) return;
       this.pending = null;
-      console.warn('[dsh-pet] 素材加载失败 pet=' + this.pet.id + ' anim=' + next + '：' + why + '（已释放本次切换）');
+      this.animFallback.fail(next);
+      window.__dshPetDebug.lastAssetFail = { anim: next, why, at: Date.now() };
+      const fb = this.gen === gen ? this.animFallback.pick(next, this.animations.idle) : null;
+      console.warn('[dsh-pet] 素材加载失败 pet=' + this.pet.id + ' anim=' + next + '：' + why + (fb ? '（改播 ' + fb + '）' : '（已释放本次切换）'));
+      if (fb) {
+        this.anim = fb;
+        this.switchTo(fb, nextOnce);
+      }
     };
-    const loadTimer = window.setTimeout(() => loadGuard('10s 超时'), 10000);
-    el.onerror = () => {
-      window.clearTimeout(loadTimer);
-      loadGuard('video error');
-    };
+    const onError = () => loadGuard('video error');
+    loadTimer = window.setTimeout(() => loadGuard('10s 超时'), 10000);
+    el.onerror = onError;
+    el.__aipetCancelLoad = cancel;
     el.load();
     const onReady = () => {
-      el.removeEventListener('loadeddata', onReady);
-      window.clearTimeout(loadTimer);
-      el.onerror = null;
+      if (cancelled) return;
+      cancel();
       if (this.pending && this.pending.gen !== gen) return;
+      this.animFallback.ok(next);
       const old = this.front === 0 ? this.videoA : this.videoB;
       // 无缝切换：新视频立刻不透明并压在上层，旧视频保持显示最后一帧，等新视频真正画出第一帧后再隐藏，
       // 中间不会出现两层都半透明 / 空白的一帧（以前 0.18s opacity 交叉淡化会让人物闪一下）。
