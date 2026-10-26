@@ -16,7 +16,7 @@
 | DeepSeek 娘（原项目自带） | DeepSeek / WorkBuddy |
 | Grok 娘 | Grok / Cursor |
 
-每个角色有登场、待机、走路、点击、拖拽、6 个专属动作，以及几十个日常小动作（哼歌、伸懒腰、打哈欠、小睡……）。
+每个角色有登场、待机、走路、点击、拖拽、6 个专属动作，以及一百来个日常小动作（哼歌、伸懒腰、打哈欠、小睡、节日活动……），六个新角色各 112 段动画。
 
 ---
 
@@ -35,7 +35,7 @@
 安装包没有数字签名（个人项目买不起证书），所以第一次运行 Windows SmartScreen 会拦一下：
 点「**更多信息**」→「**仍要运行**」就行。
 担心文件被篡改的话，可以核对 SHA-256：每个版本的值都写在 Releases 页的说明里。
-在 PowerShell 里运行 `Get-FileHash .\AI-Pet-7in1-Setup-0.5.1.exe` 就能算出来对照。
+在 PowerShell 里运行 `Get-FileHash .\AI-Pet-7in1-Setup-0.6.0.exe` 就能算出来对照。
 
 ### 从源码运行 / 自己打包（给会用命令行的人）
 
@@ -206,23 +206,30 @@
 
 ---
 
-## 5. 版权说明（请务必看）
+## 5. 参考项目
 
-这个项目里**代码和素材是两套许可**：
+| 项目 | 用在哪里 | 许可 |
+|---|---|---|
+| [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) | 桌宠程序框架（Electron 独立模式、渲染器、动画播放），以及 DeepSeek 娘全套动画 | 代码 MIT（见 `app/LICENSE-dsh-pet.txt`）；DeepSeek 动画作者声明禁止商用 |
+| [Javis603/token-monitor](https://github.com/Javis603/token-monitor) | 查看余额：Codex / Cursor / ZCode 额度的读取与解析 | MIT（见 `app/LICENSE-token-monitor.txt`） |
+| 主人之前的 C# 桌宠（`old-codex-pet\`） | 前台程序 → 角色 的识别规则 | 自有代码 |
 
-- **程序代码**：MIT 许可证，见根目录 [`LICENSE`](LICENSE)。代码基于 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)（MIT），余额查询部分移植自 [Javis603/token-monitor](https://github.com/Javis603/token-monitor)（MIT）。
-- **角色形象和动画**：**CC BY-NC-SA 4.0**，**禁止商用**，见 [`LICENSE-ASSETS.md`](LICENSE-ASSETS.md)。
-  形象来自 [ZipZipPipe](https://space.bilibili.com/4168597) 的《大 AI 与小 AI 们》和 [ApprenTice](https://space.bilibili.com/634972797) 的 [AI-Fanworks](https://github.com/Apprentice-Geo/AI-Fanworks)。
-  转发或二次创作要保留署名，并用同样的许可证发布。
-- **DeepSeek 娘动画**：来自原项目 dsh-pet，作者声明禁止商用；衍生作品需注明 <https://github.com/PC2005-cloud/dsh-pet>。
-- **气泡字体**：站酷快乐体，SIL Open Font License 1.1。原项目里的「上首软糖体」只允许个人非商用、嵌入软件需另外授权，所以已经换掉。
+本项目的程序代码以 MIT 发布，见 [`LICENSE`](LICENSE)。
+
+## 6. 素材来源
+
+- **角色原作**：[ZipZipPipe](https://space.bilibili.com/4168597) 的《大 AI 与小 AI 们》（<https://www.bilibili.com/video/BV1tE9XBbErS/>），原作声明依 **CC BY-NC-SA 4.0** 非商业使用、二创同协议授权。
+- **改编参考图**：[ApprenTice](https://space.bilibili.com/634972797) 的 [AI-Fanworks / AI-Girls-and-Chibis](https://github.com/Apprentice-Geo/AI-Fanworks/tree/main/ApprenTice/AI-Girls-and-Chibis)，**CC BY-NC-SA 4.0**。
+- **GPT / Claude / Gemini / GLM / Kimi / Grok 六个角色的关键帧和动画**：在上述设计基础上的再创作（关键帧用 Codex 出图，再做成动画并抠图），同样以 **CC BY-NC-SA 4.0** 发布，见 [`LICENSE-ASSETS.md`](LICENSE-ASSETS.md)。
+- **DeepSeek 娘动画**：来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，角色为上善无形原创、ZipZipPipe 二次设计；原作者声明禁止商用，衍生作品需注明 <https://github.com/PC2005-cloud/dsh-pet>。
+- **气泡字体**：[站酷快乐体 ZCOOL KuaiLe](https://github.com/googlefonts/zcool-kuaile)，**SIL Open Font License 1.1**（见 `app/assets/fonts/OFL-ZCOOLKuaiLe.txt`）。原项目的「上首软糖体」只许个人非商用、嵌入软件需另外授权，已从 v0.5.0 起移除。
 - 完整的第三方清单见 [`NOTICE.md`](NOTICE.md)。
 
-所以这个桌宠只能自己用或者免费分享，不能卖、不能拿来收费。
+**所以这个桌宠只能自己用或免费分享，不能卖、不能拿来收费。** 转发或二次创作请保留以上署名，并用同样的许可证发布。
 
 ---
 
-## 6. 文件夹里都是什么
+## 7. 文件夹里都是什么
 
 ```
 ai-pet-7in1\
