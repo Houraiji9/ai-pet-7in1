@@ -34,6 +34,7 @@ const { createPetApi } = require('./pet-api.js');
 const { createForegroundProvider } = require('./foreground.js');
 const { createSecretStore } = require('./balance/secrets.js');
 const { createBalanceService } = require('./balance/index.js');
+const { createBalanceRequests } = require('./balance/requests.js');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.setName('ai-pet-7in1');
@@ -256,17 +257,24 @@ function firstAvailable() {
   return CHARACTERS.find((id) => store.isAvailable(id)) || 'deepseek';
 }
 
-const petApi = createPetApi({ store, appRoot: APP_ROOT, onReload: () => reloadAll('右键菜单'), onBalance: () => queryBalanceForCurrent() });
+const petApi = createPetApi({ store, appRoot: APP_ROOT, onReload: () => reloadAll('右键菜单'), onBalance: (petId) => queryBalanceForCurrent(petId) });
 
 // ---------- 查看余额 ----------
 /** 右键「查看余额」：查**当前角色**，结果写进 /state，渲染端下一拍（≤1s）弹气泡 */
-function queryBalanceForCurrent() {
+let balanceRequests = null;
+/** 右键「查看余额」：查**发起请求的角色**（petId 已按白名单校验），结果带 petId/seq/at 写进 /state */
+function queryBalanceForCurrent(petId) {
   if (!balanceSvc) return;
-  const character = switcher.current;
-  balanceSvc
-    .queryCharacter(character, { manual: true })
-    .then((leaf) => petApi.writeBalance(leaf))
-    .catch((e) => log('[余额] 查询异常：' + (e && e.name ? e.name : 'Error')));
+  const character = CHARACTERS.includes(petId) ? petId : switcher.current;
+  if (!balanceRequests) {
+    balanceRequests = createBalanceRequests({
+      query: (id) => balanceSvc.queryCharacter(id, { manual: true }),
+      write: (leaf) => petApi.writeBalance(leaf),
+      current: () => switcher.current,
+      log,
+    });
+  }
+  balanceRequests.request(character).catch((e) => log('[余额] 查询异常：' + (e && e.name ? e.name : 'Error')));
 }
 
 function initBalance() {

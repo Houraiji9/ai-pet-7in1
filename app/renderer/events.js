@@ -223,9 +223,17 @@ function applyBalanceNotice(state, explicit) {
 let stateBaseline = null;
 
 /** 余额叶子 → 展示（成功播档位动画 + 气泡；不可用按 shared 判定弹文字说明） */
+const balanceGuard = window.BalanceGuard.createBalanceGuard();
 function applyBalanceLeaf(leaf) {
   const hit = S.readBalance(leaf);
   if (!hit) return;
+  // 只认发起请求的角色、且比上次新的结果（切换角色后晚到的旧结果不再弹到新角色头上）
+  const cur = sprites.length ? sprites[0].pet.id : '';
+  const verdict = balanceGuard.accept(leaf.data, cur);
+  if (!verdict.ok) {
+    window.__dshPetDebug.lastBalanceDropped = { reason: verdict.reason, petId: leaf.data.petId || leaf.data.character, seq: leaf.data.seq };
+    return;
+  }
   balance = hit.state;
   window.__dshPetDebug.lastBalanceOk = hit.state && hit.state.ok === true;
   if (hit.state.ok) {

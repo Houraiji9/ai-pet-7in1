@@ -37,6 +37,14 @@ PetSprite.prototype.switchSpecies = function switchSpecies(pet) {
   this.hit.setAttribute('aria-label', pet.name);
   // 旧角色的气泡/待切换状态全部作废
   this.whisperOn = false;
+  // 旧角色的「正在查询余额…」/余额气泡和它的定时器一并作废
+  this.bubbleOn = false;
+  this.balanceView = null;
+  this.balanceWrap = false;
+  if (this.bubbleTimer !== null) {
+    window.clearTimeout(this.bubbleTimer);
+    this.bubbleTimer = null;
+  }
   this.renderBubble();
   this.pending = null;
   this.anim = '';
