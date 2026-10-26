@@ -220,6 +220,8 @@
 - **改编参考图**：[ApprenTice](https://space.bilibili.com/634972797) 的 [AI-Fanworks / AI-Girls-and-Chibis](https://github.com/Apprentice-Geo/AI-Fanworks/tree/main/ApprenTice/AI-Girls-and-Chibis)，**CC BY-NC-SA 4.0**。
 - **GPT / Claude / Gemini / GLM / Kimi / Grok 六个角色的关键帧和动画**：在上述设计基础上的再创作（关键帧用 Codex 出图，再做成动画并抠图），同样以 **CC BY-NC-SA 4.0** 发布，见 [`LICENSE-ASSETS.md`](LICENSE-ASSETS.md)。
 - **DeepSeek 娘动画**：来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，角色为上善无形原创、ZipZipPipe 二次设计；原作者声明禁止商用，衍生作品需注明 <https://github.com/PC2005-cloud/dsh-pet>。
+- **DeepSeek 娘表情包（27 张）**：原样取自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) 的 `assets/memes`，条件同上。
+- **六个新角色的表情包（每人 12 张）和碎碎念台词**：表情图从本项目自己的关键帧裁出、加字，没有用别人的成图，同样以 **CC BY-NC-SA 4.0** 发布。台词和配字参考的是社区里流传的各家模型梗（Claude 的「You're absolutely right」、GPT 爱说 delve、DeepSeek 的「服务器繁忙」、Kimi 的长文本、Grok 的「42」等），出处有：ZipZipPipe《AI娘的日常（大概?）》、[Gender Swap AI 的 AI 娘图鉴](https://genderswapai.com/zh-CN/ai-gijinka)（收录了 CrossPet 等社区表情）、[lmy414/ai-chan-sheets](https://github.com/lmy414/ai-chan-sheets) 的角色设定整理，以及 dsh-pet 原版表情包的用梗。
 - **气泡字体**：[站酷快乐体 ZCOOL KuaiLe](https://github.com/googlefonts/zcool-kuaile)，**SIL Open Font License 1.1**（见 `app/assets/fonts/OFL-ZCOOLKuaiLe.txt`）。原项目的「上首软糖体」只许个人非商用、嵌入软件需另外授权，已从 v0.5.0 起移除。
 - 完整的第三方清单见 [`NOTICE.md`](NOTICE.md)。
 

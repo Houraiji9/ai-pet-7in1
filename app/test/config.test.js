@@ -103,3 +103,26 @@ test('接口：config / state / thumb / whisper / chat 关闭 / 路径穿越', (
   assert.equal(api.handle('GET', '/dsh-pet-7340/font/' + 'ZCOOLKuaiLe-Regular.ttf').status, 200);
   assert.equal(api.handle('GET', '/dsh-pet-7340/pic/cursor-grab.png').status, 200);
 });
+
+test('every role has whisper lines and memes whose png exists', () => {
+  const store = createSpeciesStore({ appRoot: APP, userDir: tmp() });
+  store.load();
+  for (const [id, s] of Object.entries(store.get().species)) {
+    assert.ok(s.whisperLines.length >= 25, id + ' whisperLines');
+    const keys = Object.keys(s.memes);
+    assert.ok(keys.length >= 10, id + ' memes');
+    for (const k of keys) assert.ok(fs.existsSync(path.join(APP, 'assets', 'pic', 'memes', id, k + '.png')), id + '/' + k);
+  }
+});
+
+test('whisper attaches a meme image and /pic serves it', () => {
+  const store = createSpeciesStore({ appRoot: APP, userDir: tmp() });
+  store.load();
+  const api = createPetApi({ store, appRoot: APP });
+  assert.ok(api.whisper('claude'));
+  const said = JSON.stringify(api.handle('GET', '/dsh-pet-7340/state').body);
+  const m = /"image\\":\\"([^\\"]+)/.exec(said);
+  assert.ok(m, 'image present');
+  const r = api.handle('GET', '/dsh-pet-7340/pic/memes/claude/' + encodeURIComponent(JSON.parse('"' + m[1] + '"')) + '.png');
+  assert.equal(r.status, 200);
+});

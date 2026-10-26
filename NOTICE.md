@@ -9,6 +9,13 @@
 | 其他六个角色的形象与动画 | ZipZipPipe / ApprenTice（AI-Fanworks）设计的再创作 | CC BY-NC-SA 4.0，见 `LICENSE-ASSETS.md` |
 | Electron、electron-updater、koffi 等 npm 依赖 | 各自仓库 | 各自许可证（安装包内 `LICENSES.chromium.html` 等） |
 
+
+## 表情包与碎碎念
+
+- `app/assets/pic/memes/deepseek/`：27 张，来自 PC2005-cloud/dsh-pet（MIT 代码仓库；角色为上善无形原创、ZipZipPipe 二次设计，禁止商用）。
+- `app/assets/pic/memes/{gpt,claude,gemini,glm,kimi,grok}/`：每个角色 12 张，由本项目关键帧裁切加字制作，CC BY-NC-SA 4.0。
+- 台词/配字灵感来源（只参考梗，没有复制图片）：ZipZipPipe《大 AI 与小 AI 们》《AI娘的日常（大概?）》（Bilibili）；genderswapai.com AI 娘图鉴（含 CrossPet 表情，CC BY-NC-SA 4.0）；github.com/lmy414/ai-chan-sheets；dsh-pet 原版表情包。
+
 ## 关于原字体「上首软糖体」
 
 上游 dsh-pet 自带 `上首软糖体.ttf`，但上游没有附带该字体的授权说明。

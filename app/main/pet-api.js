@@ -61,11 +61,22 @@ function createPetApi({ store, appRoot, onReload = () => {}, onBalance = null })
     return line;
   }
 
+  /** 碎碎念配图：与原项目一致，从该角色 memes 池随机抽 1 张（文件缺失的跳过） */
+  function pickMeme(id) {
+    const cfg = store.get();
+    if (cfg.whisperImageEnabled === false) return '';
+    const s = cfg.species[id];
+    const dir = path.join(appRoot, 'assets', 'pic', 'memes', id);
+    const keys = Object.keys((s && s.memes) || {}).filter((k) => fs.existsSync(path.join(dir, k + '.png')));
+    return keys.length ? keys[Math.floor(Math.random() * keys.length)] : '';
+  }
+
   /** 让某个角色说一句（右键「碎碎念」和自动定时器共用） */
   function whisper(id) {
     const line = pickLine(id);
     if (!line) return false;
-    state.writePet(id, 'say', { text: line });
+    const image = pickMeme(id);
+    state.writePet(id, 'say', image ? { text: line, image } : { text: line });
     return true;
   }
 

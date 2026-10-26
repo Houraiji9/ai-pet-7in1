@@ -31,6 +31,17 @@ const GLOBAL_DEFAULTS = {
 const DEFAULT_POSITION = { corner: 'bottom-right', marginX: 40, marginY: 40 };
 const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
+/** 表情包映射：只留「合法文件名 → 非空描述」 */
+function normalizeMemes(m) {
+  const out = {};
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return out;
+  for (const [k, v] of Object.entries(m)) {
+    const key = String(k).trim();
+    if (key && !BAD_NAME.test(key) && typeof v === 'string' && v.trim()) out[key] = v.trim();
+  }
+  return out;
+}
+
 /** 动画配置里引用到的所有动画名 */
 function referencedAnims(animations) {
   const a = animations || {};
@@ -70,7 +81,7 @@ function normalizeAnimations(a) {
  * @param {string|null} o.projectAssetsDir 开发时的项目素材目录（ai-pet-7in1/assets），打包后为 null
  */
 function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
-  let state = { size: 400, position: DEFAULT_POSITION, whisperIntervalSec: 300, species: {}, errors: [], file: '' };
+  let state = { size: 400, position: DEFAULT_POSITION, whisperIntervalSec: 300, whisperImageEnabled: true, species: {}, errors: [], file: '' };
   const fileCache = new Map();
 
   function configFile() {
@@ -106,6 +117,7 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
       marginY: Number.isFinite(Number(pos.marginY)) ? Number(pos.marginY) : DEFAULT_POSITION.marginY,
     };
     const whisperIntervalSec = Number.isFinite(Number(raw.whisperIntervalSec)) ? Math.max(0, Number(raw.whisperIntervalSec)) : 300;
+    const whisperImageEnabled = raw.whisperImageEnabled !== false;
     const species = {};
     const src = raw.species && typeof raw.species === 'object' ? raw.species : {};
     for (const id of CHARACTERS) {
@@ -121,13 +133,15 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
         enabled: s.enabled !== false,
         whisperPrompt: String(s.whisperPrompt || ''),
         whisperLines: (Array.isArray(s.whisperLines) ? s.whisperLines : []).map(String).filter(Boolean),
+        // 表情包（与原项目 memes 同义：键 = assets/pic/memes/<角色>/<键>.png，值 = 图片描述）
+        memes: normalizeMemes(s.memes),
         animations: normalizeAnimations(s.animations),
         animationWeights: { idle: Number(w.idle) || 0, turn: Number(w.turn) || 0, move: Number(w.move) || 0 },
       };
       if (!species[id].animations.idle.length) errors.push(`角色 ${id} 没有配置 animations.idle`);
     }
     for (const k of Object.keys(src)) if (!CHARACTERS.includes(k)) errors.push(`未知角色 id：${k}（只认 ${CHARACTERS.join('/')}）`);
-    state = { size, position, whisperIntervalSec, species, errors, file };
+    state = { size, position, whisperIntervalSec, whisperImageEnabled, species, errors, file };
     return state;
   }
 
@@ -225,6 +239,8 @@ function createSpeciesStore({ appRoot, userDir, projectAssetsDir = null }) {
       out[id] = {
         ...JSON.parse(JSON.stringify(GLOBAL_DEFAULTS)),
         whisperPrompt: s.whisperPrompt,
+        whisperImageEnabled: state.whisperImageEnabled !== false,
+        memes: { ...(s.memes || {}) },
         pets: [
           {
             name: s.name,
