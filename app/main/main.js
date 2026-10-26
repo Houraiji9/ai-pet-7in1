@@ -346,6 +346,7 @@ function assetsStatusLabel() {
   if (s.state === 'checking') return '动画资源：检查中…';
   if (s.state === 'offline') return '动画资源：暂时连不上 GitHub（点击重试）';
   if (s.state === 'partial') return '动画资源：有些没下完（点击重试）';
+  if (s.state === 'stopped') return '动画资源：下载已停止（点击继续）';
   if (s.state === 'done') return '动画资源：已是最新（点击重新检查）';
   return '动画资源：检查更新';
 }
@@ -370,13 +371,16 @@ function scheduleAssetsRetry(ms) {
   if (assetsRetryTimer) clearTimeout(assetsRetryTimer);
   assetsRetryTimer = setTimeout(() => runAssetSync(false), ms);
 }
+let assetsQuitting = false;
 function runAssetSync(manual) {
-  if (!assetSync) return;
+  if (!assetSync || assetsQuitting) return;
   if (manual && assetSync.isRunning()) { assetsWinDismissed = false; openAssetsWindow(); return; }
   if (manual) assetsWinDismissed = false;
   assetSync.prioritize(switcher.current);
   assetSync.sync().then((s) => {
+    if (assetsQuitting) return;
     refreshTray();
+    if (s.state === 'stopped') return; // 主动停的：不自动重试，也不显示「已是最新」
     if (s.state === 'offline' || s.state === 'partial') scheduleAssetsRetry(10 * 60 * 1000);
     else scheduleAssetsRetry(6 * 3600 * 1000);
     if (manual && s.state === 'done' && !s.totalFiles) {
@@ -384,6 +388,9 @@ function runAssetSync(manual) {
     }
     if (assetsWin && !assetsWin.isDestroyed() && s.state === 'done') setTimeout(() => assetsWin && !assetsWin.isDestroyed() && assetsWin.close(), 4000);
     if (manual && s.state === 'offline') { openAssetsWindow(); }
+  }).catch((e) => {
+    log('[素材] 同步出错：' + (e && e.stack ? e.stack : e));
+    if (!assetsQuitting) scheduleAssetsRetry(10 * 60 * 1000);
   });
 }
 function initAssetSync() {
@@ -1090,6 +1097,10 @@ app.whenReady().then(() => {
 app.on('before-quit', () => {
   quitting = true;
   if (fg.provider) fg.provider.dispose();
+  // 退出时真正取消素材下载（不再留着请求 / 重试定时器）
+  assetsQuitting = true;
+  if (assetsRetryTimer) clearTimeout(assetsRetryTimer);
+  if (assetSync) assetSync.stop();
 });
 app.on('window-all-closed', () => {
   // 调试窗口关掉不退出；宠物窗口的退出逻辑在它自己的 closed 里
