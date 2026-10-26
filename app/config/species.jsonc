@@ -239,6 +239,8 @@
           "点击回应-开心跃动",
           "点击回应-害羞惊讶"
         ],
+        // 新角色的动作片 3 秒：开头/结尾是待机帧，leadSec/tailSec 是实测的「站着不动」时长，窗口只在迈步那段移动（同 DeepSeek 娘做法）；
+        // 原地左转走路是 2 秒无缝循环，loop=true 按 speed 步速循环整数圈
         "moves": {
           "default": {
             "minDist": 50,
@@ -246,30 +248,43 @@
             "margin": 20,
             "leadSec": 0,
             "tailSec": 0,
-            "facing": "left",
-            "speed": 45
+            "facing": "left"
           },
           "actions": [
             {
-              "name": "原地左转走路"
+              "name": "原地左转走路",
+              "params": {
+                "loop": true,
+                "speed": 45,
+                "leadSec": 0,
+                "tailSec": 0
+              }
             },
             {
-              "name": "螃蟹走路"
+              "name": "螃蟹走路",
+              "params": {
+                "minDist": 55,
+                "maxDist": 75,
+                "leadSec": 0.33,
+                "tailSec": 0.5
+              }
             },
             {
               "name": "原地漂浮踏步",
               "params": {
-                "minDist": 40,
-                "maxDist": 120
+                "minDist": 45,
+                "maxDist": 61,
+                "leadSec": 0.38,
+                "tailSec": 0.5
               }
             },
             {
               "name": "原地左转奔跑",
               "params": {
-                "minDist": 120,
-                "maxDist": 320,
-                "leadSec": 1.75,
-                "tailSec": 4.8
+                "minDist": 159,
+                "maxDist": 215,
+                "leadSec": 0.33,
+                "tailSec": 0.33
               }
             }
           ]
@@ -449,6 +464,8 @@
           "点击回应-开心跃动",
           "点击回应-害羞惊讶"
         ],
+        // 新角色的动作片 3 秒：开头/结尾是待机帧，leadSec/tailSec 是实测的「站着不动」时长，窗口只在迈步那段移动（同 DeepSeek 娘做法）；
+        // 原地左转走路是 2 秒无缝循环，loop=true 按 speed 步速循环整数圈
         "moves": {
           "default": {
             "minDist": 50,
@@ -456,30 +473,43 @@
             "margin": 20,
             "leadSec": 0,
             "tailSec": 0,
-            "facing": "left",
-            "speed": 45
+            "facing": "left"
           },
           "actions": [
             {
-              "name": "原地左转走路"
+              "name": "原地左转走路",
+              "params": {
+                "loop": true,
+                "speed": 45,
+                "leadSec": 0,
+                "tailSec": 0
+              }
             },
             {
-              "name": "螃蟹走路"
+              "name": "螃蟹走路",
+              "params": {
+                "minDist": 49,
+                "maxDist": 66,
+                "leadSec": 0.46,
+                "tailSec": 0.62
+              }
             },
             {
               "name": "原地漂浮踏步",
               "params": {
-                "minDist": 40,
-                "maxDist": 120
+                "minDist": 51,
+                "maxDist": 70,
+                "leadSec": 0.25,
+                "tailSec": 0.33
               }
             },
             {
               "name": "原地左转奔跑",
               "params": {
-                "minDist": 120,
-                "maxDist": 320,
-                "leadSec": 1.75,
-                "tailSec": 4.8
+                "minDist": 148,
+                "maxDist": 200,
+                "leadSec": 0.54,
+                "tailSec": 0.29
               }
             }
           ]
@@ -659,6 +689,8 @@
           "点击回应-开心跃动",
           "点击回应-害羞惊讶"
         ],
+        // 新角色的动作片 3 秒：开头/结尾是待机帧，leadSec/tailSec 是实测的「站着不动」时长，窗口只在迈步那段移动（同 DeepSeek 娘做法）；
+        // 原地左转走路是 2 秒无缝循环，loop=true 按 speed 步速循环整数圈
         "moves": {
           "default": {
             "minDist": 50,
@@ -666,31 +698,44 @@
             "margin": 20,
             "leadSec": 0,
             "tailSec": 0,
-            "facing": "left",
-            "speed": 45
+            "facing": "left"
           },
           "actions": [
             {
-              "name": "原地左转走路"
+              "name": "原地左转走路",
+              "params": {
+                "loop": true,
+                "speed": 45,
+                "leadSec": 0,
+                "tailSec": 0
+              }
+            },
+            {
+              "name": "螃蟹走路",
+              "params": {
+                "minDist": 57,
+                "maxDist": 77,
+                "leadSec": 0.38,
+                "tailSec": 0.38
+              }
             },
             {
               "name": "原地漂浮踏步",
               "params": {
-                "minDist": 40,
-                "maxDist": 120
+                "minDist": 52,
+                "maxDist": 70,
+                "leadSec": 0.17,
+                "tailSec": 0.38
               }
             },
             {
               "name": "原地左转奔跑",
               "params": {
-                "minDist": 120,
-                "maxDist": 320,
-                "leadSec": 1.75,
-                "tailSec": 4.8
+                "minDist": 141,
+                "maxDist": 191,
+                "leadSec": 0.38,
+                "tailSec": 0.54
               }
-            },
-            {
-              "name": "螃蟹走路"
             }
           ]
         },
@@ -869,6 +914,8 @@
           "点击回应-开心跃动",
           "点击回应-害羞惊讶"
         ],
+        // 新角色的动作片 3 秒：开头/结尾是待机帧，leadSec/tailSec 是实测的「站着不动」时长，窗口只在迈步那段移动（同 DeepSeek 娘做法）；
+        // 原地左转走路是 2 秒无缝循环，loop=true 按 speed 步速循环整数圈
         "moves": {
           "default": {
             "minDist": 50,
@@ -876,30 +923,43 @@
             "margin": 20,
             "leadSec": 0,
             "tailSec": 0,
-            "facing": "left",
-            "speed": 45
+            "facing": "left"
           },
           "actions": [
             {
-              "name": "原地左转走路"
+              "name": "原地左转走路",
+              "params": {
+                "loop": true,
+                "speed": 45,
+                "leadSec": 0,
+                "tailSec": 0
+              }
             },
             {
-              "name": "螃蟹走路"
+              "name": "螃蟹走路",
+              "params": {
+                "minDist": 48,
+                "maxDist": 65,
+                "leadSec": 0.62,
+                "tailSec": 0.5
+              }
             },
             {
               "name": "原地漂浮踏步",
               "params": {
-                "minDist": 40,
-                "maxDist": 120
+                "minDist": 51,
+                "maxDist": 69,
+                "leadSec": 0.21,
+                "tailSec": 0.38
               }
             },
             {
               "name": "原地左转奔跑",
               "params": {
-                "minDist": 120,
-                "maxDist": 320,
-                "leadSec": 1.75,
-                "tailSec": 4.8
+                "minDist": 133,
+                "maxDist": 179,
+                "leadSec": 0.38,
+                "tailSec": 0.67
               }
             }
           ]
@@ -1079,6 +1139,8 @@
           "点击回应-开心跃动",
           "点击回应-害羞惊讶"
         ],
+        // 新角色的动作片 3 秒：开头/结尾是待机帧，leadSec/tailSec 是实测的「站着不动」时长，窗口只在迈步那段移动（同 DeepSeek 娘做法）；
+        // 原地左转走路是 2 秒无缝循环，loop=true 按 speed 步速循环整数圈
         "moves": {
           "default": {
             "minDist": 50,
@@ -1086,30 +1148,43 @@
             "margin": 20,
             "leadSec": 0,
             "tailSec": 0,
-            "facing": "left",
-            "speed": 45
+            "facing": "left"
           },
           "actions": [
             {
-              "name": "原地左转走路"
+              "name": "原地左转走路",
+              "params": {
+                "loop": true,
+                "speed": 45,
+                "leadSec": 0,
+                "tailSec": 0
+              }
             },
             {
-              "name": "螃蟹走路"
+              "name": "螃蟹走路",
+              "params": {
+                "minDist": 55,
+                "maxDist": 75,
+                "leadSec": 0.58,
+                "tailSec": 0.25
+              }
             },
             {
               "name": "原地漂浮踏步",
               "params": {
-                "minDist": 40,
-                "maxDist": 120
+                "minDist": 57,
+                "maxDist": 76,
+                "leadSec": 0.17,
+                "tailSec": 0.17
               }
             },
             {
               "name": "原地左转奔跑",
               "params": {
-                "minDist": 120,
-                "maxDist": 320,
-                "leadSec": 1.75,
-                "tailSec": 4.8
+                "minDist": 144,
+                "maxDist": 195,
+                "leadSec": 0.38,
+                "tailSec": 0.5
               }
             }
           ]
@@ -1289,6 +1364,8 @@
           "点击回应-开心跃动",
           "点击回应-害羞惊讶"
         ],
+        // 新角色的动作片 3 秒：开头/结尾是待机帧，leadSec/tailSec 是实测的「站着不动」时长，窗口只在迈步那段移动（同 DeepSeek 娘做法）；
+        // 原地左转走路是 2 秒无缝循环，loop=true 按 speed 步速循环整数圈
         "moves": {
           "default": {
             "minDist": 50,
@@ -1296,30 +1373,43 @@
             "margin": 20,
             "leadSec": 0,
             "tailSec": 0,
-            "facing": "left",
-            "speed": 45
+            "facing": "left"
           },
           "actions": [
             {
-              "name": "原地左转走路"
+              "name": "原地左转走路",
+              "params": {
+                "loop": true,
+                "speed": 45,
+                "leadSec": 0,
+                "tailSec": 0
+              }
             },
             {
-              "name": "螃蟹走路"
+              "name": "螃蟹走路",
+              "params": {
+                "minDist": 55,
+                "maxDist": 75,
+                "leadSec": 0.29,
+                "tailSec": 0.54
+              }
             },
             {
               "name": "原地漂浮踏步",
               "params": {
-                "minDist": 40,
-                "maxDist": 120
+                "minDist": 45,
+                "maxDist": 61,
+                "leadSec": 0.33,
+                "tailSec": 0.54
               }
             },
             {
               "name": "原地左转奔跑",
               "params": {
-                "minDist": 120,
-                "maxDist": 320,
-                "leadSec": 1.75,
-                "tailSec": 4.8
+                "minDist": 148,
+                "maxDist": 200,
+                "leadSec": 0.25,
+                "tailSec": 0.58
               }
             }
           ]

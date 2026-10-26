@@ -55,7 +55,7 @@ test('ChatGPT.exe 不在 Codex 包里（普通 ChatGPT 安装）不算 gpt —�
   assert.equal(id('C:/x/ChatGPT.exe', 'OpenAI.ChatGPT-Desktop_2p2nqsd0c76g0'), undefined);
 });
 
-test('新增的未验证规则：Claude / Antigravity / WorkBuddy / Cursor', () => {
+test('新增规则（已验证）：Claude / Antigravity / WorkBuddy / Cursor', () => {
   const cases = [
     ['C:/Users/me/AppData/Local/AnthropicClaude/app-0.9/Claude.exe', 'claude', 'claude'],
     ['C:/Users/me/AppData/Local/Programs/Antigravity/Antigravity.exe', 'antigravity', 'gemini'],
@@ -66,7 +66,7 @@ test('新增的未验证规则：Claude / Antigravity / WorkBuddy / Cursor', () 
     const r = matchRule(rules, { path: p });
     assert.equal(r && r.id, rid, p);
     assert.equal(r.character, c);
-    assert.equal(r.verified, false, rid + ' 应标记为未验证');
+    assert.equal(r.verified, true, rid + ' 应为已验证');
   }
   for (const rid of ['gpt', 'zcode', 'kimi', 'gemini', 'deepseek', 'grok-bot']) {
     assert.equal(rules.find((r) => r.id === rid).verified, true, rid + ' 应为已验证');

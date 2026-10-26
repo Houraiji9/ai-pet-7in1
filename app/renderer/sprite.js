@@ -617,7 +617,7 @@ class PetSprite {
       areas: AREAS,
     });
     if (!plan) return false;
-    this.pendingMove = { ...plan, dir, leadSec: mp.leadSec, tailSec: mp.tailSec, speed: (mp.speed || 0) * distScale };
+    this.pendingMove = { ...plan, dir, leadSec: mp.leadSec, tailSec: mp.tailSec, loop: !!mp.loop, speed: (mp.speed || 0) * distScale };
     this.anim = chosen.name;
     this.once = true;
     this.switchTo(chosen.name, true);
@@ -629,7 +629,7 @@ class PetSprite {
     if (!pm || this.moveRef !== null) return;
     this.pendingMove = null;
     const { startRatio, startYRatio, targetRatio, dir, totalRatio, leadSec, tailSec } = pm;
-    if (pm.speed > 0) return this.startLoopMoveDrive(el, pm);
+    if (pm.loop && pm.speed > 0) return this.startLoopMoveDrive(el, pm);
     const duration = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 10.09;
     const travelWindow = Math.max(0.1, duration - leadSec - tailSec);
     const token = ++this.moveToken;
@@ -663,21 +663,29 @@ class PetSprite {
     const H = VIEW.h;
     const distPx = totalRatio * W;
     const loops = Math.max(1, Math.round(distPx / speed / clip));
-    const travelMs = loops * clip * 1000;
     el.loop = true;
     el.onended = null;
     const token = ++this.moveToken;
-    const t0 = performance.now();
-    if (window.AIPET_MOVE_LOG) console.log('[move] start dir=' + dir + ' dist=' + distPx.toFixed(1) + 'px loops=' + loops + ' speed=' + (distPx / (travelMs / 1000)).toFixed(1) + 'px/s facing=' + this.facing);
+    const travelSec = loops * clip;
+    // 位移按视频自身播放时间推进（累计 currentTime、跨圈回绕），不用墙钟：视频起播慢/卡一帧时窗口也跟着等，
+    // 走完整数圈的那一刻正好停，之后不再滑动
+    let acc = 0;
+    let last = el.currentTime || 0;
+    if (window.AIPET_MOVE_LOG) console.log('[move] start dir=' + dir + ' dist=' + distPx.toFixed(1) + 'px loops=' + loops + ' speed=' + (distPx / travelSec).toFixed(1) + 'px/s facing=' + this.facing);
     const step = () => {
       if (this.moveToken !== token) return;
-      const k = Math.min(1, (performance.now() - t0) / travelMs);
+      const t = el.currentTime || 0;
+      acc += t >= last ? t - last : t + clip - last;
+      last = t;
+      const k = Math.min(1, acc / travelSec);
       const ratioX = startRatio + dir * totalRatio * k;
       this.sendBounds(ratioX * W - this.halfW, startYRatio * H - this.halfH);
       if (k < 1) {
         this.moveRef = requestAnimationFrame(step);
       } else {
         this.moveRef = null;
+        el.loop = false;
+        el.pause();
         this.customPos = { rx: targetRatio, ry: startYRatio };
         if (window.AIPET_MOVE_LOG) console.log('[move] end x=' + (ratioX * W).toFixed(1) + ' target=' + (targetRatio * W).toFixed(1));
         this.handleEnded();
